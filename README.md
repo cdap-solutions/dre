@@ -8,22 +8,18 @@ on a Production Rule System. Production rules, each of which has a `when` clause
 YARE has been built ground-up to address the needs of business data transformation for big 
 data systems. It supports application of production rules for both Batch and Realtime system. 
 
-## What's available with this Rules Engine
+## YARE Provides
 
-It contains:
+ * A Inference Engine that implements Forward Chaining
+   * CDAP Plugin -- Transform 
+   * CDAP Plugin -- Action
+ * Rule Management Service,
+ * Rule Store &
+ * **FUTURE** Rules Management Web Interface.  
 
- * A Inference Engine that implements Forward Chaining,
- * Rule Management Service &
- * **FUTURE** Rules Management Web Interface. 
- 
-NOTE: Current implementation of inference engine does not implement
-Rete Algorithm for inferring the execution working set,
-but relies of pre compilation step to determine the rules to be fired.
-This will be optimized in the upcoming releases. 
+## Example Rulebook
 
-## A Rule
-
-Following is a simple example of a rule that can be defined within this
+Following is a simple example of a rulebook that can be defined within this
 implementation of Rule Engine.
 
 ```
@@ -90,36 +86,6 @@ rulebook "Titanic Feed Normalization" {
 }
 ```
 
+## More information
 
-## Background
-
-Rules Engine provide a simple way to separate out the data and logic manipulating the data.
-Rule engine represents the decision that a business does by taking in one or more 
-rule books as input set along with data
-elements on which the rule books are applied to generate the final
-data elements meeting the business goals.
-
-This implementation of Rule Engine is meant for applying rules on
-a large scale data processing system like Apache Spark and MapReduce engines.
-
-The Rule Engine implements the forward-chaining where the actions of
-one rule can cause the condition of other rules to be executed.
-Execution has cascading effect in terms of how the rules are executed.
-
-This Rule Engine is built for performing business data transformation
-for large and complex datasets mainly observed within big data systems.
-It's built with the goal of providing reusability, greater flexibility,
-reduced complexity and ease of understanding.
-
-## Finding the Perfect Rules Engine for Big Data
-
-First, we looked at Drools, but we quickly decided that Drools was much
-more than was required and also not scalable for high volume data processing
-environment. Besides that, Drool has it's own repository and management
-that's not integrated with other system in Big Data ecosystem like
-Data Governance. Aside from that, many developers are generally not familiar
-with Drools.
-
-Next, we looked at Easy Rules. Easy Rules seemed a lot easier and much
-easier interface than Drools. Ordering and support for Forward or Backward
-chain responsibilities were difficult to implement.
+Please read the [wiki pages](https://github.com/cask-solutions/yare/wiki) for more information. 
