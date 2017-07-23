@@ -15,7 +15,24 @@ data systems. It supports application of production rules for both Batch and Rea
    * CDAP Plugin -- Action
  * Rule Management Service,
  * Rule Store &
- * **FUTURE** Rules Management Web Interface.  
+ * **FUTURE** Rules Management Web Interface. 
+ 
+## YARE Rule Construct
+
+Following is the construct of a rule within YARE. 
+
+```
+rule "rule-id" {
+  description "Every rule requires a description"
+  when ( condition ) 
+  then {
+    wrangler directive;
+    wrangler directive;
+  }
+}
+```
+
+Each rule is defined by a `rule-id`. Each rule also consists of mandatory description followed by a `condition` that will be evaluated by the inference engine. If the `condition` evaluates to `true`, the rule is fired and directives within the `then` section are executed. 
 
 ## Example Rulebook
 
