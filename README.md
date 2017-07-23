@@ -1,13 +1,11 @@
-# Rules Engine
+# YARE
 
-This Rule Engine is a sophisticated if-then-else statement interpreter that runs 
-natively on big data system. It provides a easy-to-understand **Business Readable DSL**.
-This engine provides an alternative computational model. Instead of the usual imperative model, 
-which consists of commands in sequence with conditionals and loops, a this rules engine is based 
-on a Production Rule System. This is a set of production rules, each of which has a condition and 
-an action in simplistic terms it glorified if-then statements as stated above.
+YARE is big data native Rules Engine built ground up. It includes a easy-to-understand **Business Readable DSL**.
+YARE provides an alternative computational model instead of the usual imperative model, 
+which consists of commands in sequence with conditionals and loops. This rules engine is based 
+on a Production Rule System. Production rules, each of which has a `when` clause defining the condition for firing the rule and a `action` that is execute when the condition is true.
 
-This system has been built ground-up to address the needs of business data transformation for big 
+YARE has been built ground-up to address the needs of business data transformation for big 
 data systems. It supports application of production rules for both Batch and Realtime system. 
 
 ## What's available with this Rules Engine
