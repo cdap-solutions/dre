@@ -34,10 +34,9 @@ rule "rule-id" {
 
 Each rule is defined by a `rule-id`. Each rule also consists of mandatory description followed by a `condition` that will be evaluated by the inference engine. If the `condition` evaluates to `true`, the rule is fired and directives within the `then` section are executed. 
 
-## Example Rulebook
+## YARE Rulebook Construct
 
-Following is a simple example of a rulebook that can be defined within this
-implementation of Rule Engine.
+`Rulebook` is a collection of `Rules` that can be composed dynamically. A `Rulebook` can consists of one or more `Rule`s. Following is a simple example of a rulebook that can be defined within YARE. 
 
 ```
 /**
