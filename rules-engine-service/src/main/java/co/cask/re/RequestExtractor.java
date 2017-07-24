@@ -11,6 +11,9 @@ import java.nio.charset.Charset;
  */
 public final class RequestExtractor {
   private final HttpServiceRequest request;
+  public static final String CONTENT_TYPE = "Content-Type";
+  public static final String CHARSET = "charset";
+
 
   public RequestExtractor(HttpServiceRequest request) {
     this.request = request;
@@ -68,6 +71,20 @@ public final class RequestExtractor {
 
   public String getContent(String charset) {
     return getContent(Charset.forName(charset));
+  }
+
+  /**
+   * Checks if the 'Content-Type' matches expected.
+   *
+   * @param expectedType to be checked for content type.
+   * @return true if it matches, false if it's not present or doesn't match expected.
+   */
+  public boolean isContentType(String expectedType) {
+    if (hasHeader(CONTENT_TYPE)) {
+      String header = getHeader(CONTENT_TYPE, null);
+      return (header != null && !header.equalsIgnoreCase(expectedType)) ? false : true;
+    }
+    return false;
   }
 
 

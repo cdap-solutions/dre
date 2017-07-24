@@ -13,6 +13,8 @@ import com.google.gson.JsonPrimitive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Reader;
+import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -150,15 +152,28 @@ public class YAREService extends AbstractHttpServiceHandler {
     try {
       RequestExtractor handler = new RequestExtractor(request);
       String content = handler.getContent(StandardCharsets.UTF_8);
-      RulebookRequest rb = gson.fromJson(content, RulebookRequest.class);
-      rulesDB.createRulebook(rb);
+      String id;
+      if(handler.isContentType("application/json")) {
+        RulebookRequest rb = gson.fromJson(content, RulebookRequest.class);
+        rulesDB.createRulebook(rb);
+        id = rb.getId();
+      } else if (handler.isContentType("application/rules-engine")) {
+        Reader reader = new StringReader(content);
+        Compiler compiler = new RulebookCompiler();
+        Rulebook rulebook = compiler.compile(reader);
+        rulesDB.createRulebook(rulebook);
+        id = rulebook.getName();
+      } else {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_BAD_REQUEST, "Unsupported content type.");
+        return;
+      }
 
       JsonObject response = new JsonObject();
       response.addProperty("status", HttpURLConnection.HTTP_OK);
-      response.addProperty("message", String.format("Successfully created rulebook '%s'.", rb.getId()));
+      response.addProperty("message", String.format("Successfully created rulebook '%s'.", id));
       response.addProperty("count", 1);
       JsonArray values = new JsonArray();
-      values.add(new JsonPrimitive(rb.getId()));
+      values.add(new JsonPrimitive(id));
       response.add("values", values);
       ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (RulebookAlreadyExistsException e) {

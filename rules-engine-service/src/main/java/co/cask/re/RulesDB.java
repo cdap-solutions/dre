@@ -166,6 +166,27 @@ public final class RulesDB {
     rulebook.put(toKey(rb.getId()), columns, values);
   }
 
+  public void createRulebook(Rulebook rulebook) throws RulebookAlreadyExistsException {
+    List<String> ruleIds = new ArrayList<>();
+    for (Rule rule : rulebook.getRules()) {
+      RuleRequest request = new RuleRequest(rule.getName(), rule.getDescription(), rule.getWhen(), rule.getThen());
+      try {
+        createRule(request);
+        ruleIds.add(rule.getName());
+      } catch (RuleAlreadyExistsException e) {
+        // no-op if rule id already exists.
+      }
+    }
+    RulebookRequest rbreq = new RulebookRequest(rulebook.getName(), rulebook.getMeta().getDescription(),
+                                                rulebook.getMeta().getSource(), rulebook.getMeta().getUser(),
+                                                ruleIds);
+    try {
+      createRulebook(rbreq);
+    } catch (RuleNotFoundException e) {
+      // no-op should not happen.
+    }
+  }
+
   public void updateRulebook(String id, RulebookRequest rb) throws RulebookAlreadyExistsException, RuleNotFoundException {
     Row row = rulebook.get(toKey(id));
     if (row.isEmpty()) {
@@ -349,6 +370,5 @@ public final class RulesDB {
   private byte[] toKey(String value) {
     return Bytes.toBytes(value);
   }
-
 
 }

@@ -164,7 +164,6 @@ public final class RulesEngine extends Transform<StructuredRecord, StructuredRec
     @Macro
     private String rulebook;
 
-
     @Name("schema")
     @Description("Specifies the schema that has to be output.")
     @Macro
