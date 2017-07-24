@@ -1,4 +1,4 @@
-rulebook "test1" {
+rulebook test1 {
   version 1
 
   meta {
@@ -9,7 +9,7 @@ rulebook "test1" {
     user "nmotgi"
   }
 
-  rule "validate.age.less" {
+  rule validate.age.less {
     description "If age is less than 0 it's set to zero"
     when ( age < 0 ) then {
       age = 0;

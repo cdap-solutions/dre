@@ -27,9 +27,10 @@
 
   <modules>
     <module>rules-engine-api</module>
-    <module>rules-engine-transform</module>
+    <module>rules-engine-plugins</module>
     <module>rules-engine-service</module>
     <module>rules-engine-core</module>
+    <module>rules-engine-convertors</module>
   </modules>
 
   <licenses>

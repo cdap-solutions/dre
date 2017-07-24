@@ -11,7 +11,7 @@
   <name>Rules Engine Service</name>
 
   <properties>
-    <app.main.class>co.cask.re.service.RulesEngine</app.main.class>
+    <app.main.class>co.cask.re.YAREApplication</app.main.class>
     <tika.version>1.14</tika.version>
     <hadoop.version>2.3.0</hadoop.version>
   </properties>

@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * Class description here.
  */
-class RuleEngineContext implements ExecutorContext {
+class RulesEngineContext implements ExecutorContext {
   private final Environment environment;
   private final TransformContext context;
 
@@ -21,7 +21,7 @@ class RuleEngineContext implements ExecutorContext {
   private String name;
   private Map<String, String> properties;
 
-  RuleEngineContext(Environment environment, TransformContext context, TransientStore store) {
+  RulesEngineContext(Environment environment, TransformContext context, TransientStore store) {
     this.environment = environment;
     this.metrics = context.getMetrics();
     this.name = context.getStageName();

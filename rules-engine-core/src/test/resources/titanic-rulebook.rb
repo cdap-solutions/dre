@@ -6,7 +6,7 @@
  *
  * A service exists to transform this data.
  */
-rulebook "Titanic-Normalization" {
+rulebook Titanic-Normalization {
   version 1
 
   meta {
@@ -15,14 +15,14 @@ rulebook "Titanic-Normalization" {
     user "joltie"
   }
 
-  rule "remove-first-line" {
+  rule remove-first-line {
     description "Removes first line when offset is zero"
     when(present(offset) && offset == 0) then {
       filter-row-if-true true;
     }
   }
 
-  rule "parse-as-csv" {
+  rule parse-as-csv {
     description "Parses body"
     when(present(body)) then {
       parse-as-csv body ',' false;
@@ -32,14 +32,14 @@ rulebook "Titanic-Normalization" {
     }
   }
 
-  rule "rename-sex-to-gender" {
+  rule rename-sex-to-gender {
     description "Rename sex field to gender"
     when(present(sex)) then {
       rename sex gender;
     }
   }
 
-  rule "single-character-gender" {
+  rule single-character-gender {
     description "Converts gender to single character"
     when(present(gender) && gender.length() > 1) then {
       cut-character gender gender 1-1;
@@ -47,14 +47,14 @@ rulebook "Titanic-Normalization" {
     }
   }
 
-  rule "missing-age" {
+  rule missing-age {
     description "If age is missing, send it to error"
     when (!present(age)) then {
       send-to-error true;
     }
   }
 
-  rule "remove-fare-less-than-8.06" {
+  rule remove-fare-less-than-8.06 {
     description "Send to error fares that are less that 8.06"
     when (fare < 8.06) then {
       send-to-error true;

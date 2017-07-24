@@ -7,8 +7,8 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>rules-engine-transform</artifactId>
-  <name>Rules Engine Transform</name>
+  <artifactId>rules-engine-plugins</artifactId>
+  <name>Rules Engine Plugins</name>
 
   <properties>
   <!-- properties for script budirectivestep that creates the config files for the artifacts -->

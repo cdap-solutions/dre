@@ -13,13 +13,9 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.Transform;
 import co.cask.cdap.etl.api.TransformContext;
 import co.cask.directives.aggregates.DefaultTransientStore;
-import co.cask.wrangler.api.DirectiveRegistry;
 import co.cask.wrangler.api.ExecutorContext;
 import co.cask.wrangler.api.Row;
 import co.cask.wrangler.api.TransientStore;
-import co.cask.wrangler.registry.CompositeDirectiveRegistry;
-import co.cask.wrangler.registry.SystemDirectiveRegistry;
-import co.cask.wrangler.registry.UserDirectiveRegistry;
 import co.cask.wrangler.utils.RecordConvertor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,10 +30,10 @@ import java.util.List;
  * Class description here.
  */
 @Plugin(type = "transform")
-@Name("RuleEngine")
+@Name("RulesEngine")
 @Description("A Rule Engine that uses Inference to determines the fields to process in a record")
-public final class RuleEngine extends Transform<StructuredRecord, StructuredRecord> {
-  private static final Logger LOG = LoggerFactory.getLogger(RuleEngine.class);
+public final class RulesEngine extends Transform<StructuredRecord, StructuredRecord> {
+  private static final Logger LOG = LoggerFactory.getLogger(RulesEngine.class);
 
   // Plugin configuration.
   private final Config config;
@@ -60,7 +56,7 @@ public final class RuleEngine extends Transform<StructuredRecord, StructuredReco
   // Output rows
   private final List<Row> rows = new ArrayList<>();
 
-  public RuleEngine(Config config) {
+  public RulesEngine(Config config) {
     this.config = config;
   }
 
@@ -101,10 +97,6 @@ public final class RuleEngine extends Transform<StructuredRecord, StructuredReco
     super.initialize(context);
 
     store = new DefaultTransientStore();
-    DirectiveRegistry registry = new CompositeDirectiveRegistry(
-      new SystemDirectiveRegistry(),
-      new UserDirectiveRegistry(context)
-    );
 
     // Based on the configuration create output schema.
     try {
@@ -120,8 +112,8 @@ public final class RuleEngine extends Transform<StructuredRecord, StructuredReco
     Compiler compiler = new RulebookCompiler();
     rulebook = compiler.compile(reader);
 
-    ExecutorContext ctx = new RuleEngineContext(ExecutorContext.Environment.TRANSFORM,
-                                                context, store);
+    ExecutorContext ctx = new RulesEngineContext(ExecutorContext.Environment.TRANSFORM,
+                                                 context, store);
     ie = new RuleInferenceEngine(rulebook, ctx);
     ie.initialize();
   }
@@ -129,6 +121,7 @@ public final class RuleEngine extends Transform<StructuredRecord, StructuredReco
   @Override
   public void transform(StructuredRecord input, Emitter<StructuredRecord> emitter)
     throws Exception {
+
     Row row = new Row();
     for (Schema.Field field : input.getSchema().getFields()) {
       row.add(field.getName(), input.get(field.getName()));

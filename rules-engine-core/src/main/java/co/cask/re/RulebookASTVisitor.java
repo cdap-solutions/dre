@@ -23,7 +23,7 @@ public class RulebookASTVisitor extends RulebookBaseVisitor<Rulebook.Builder> {
 
   @Override
   public Rulebook.Builder visitRulebook(RulebookParser.RulebookContext ctx) {
-    rbBuilder = new Rulebook.Builder(trimQuote(ctx.String().toString()));
+    rbBuilder = new Rulebook.Builder(ctx.Identifier().toString());
     return super.visitRulebook(ctx);
   }
 
@@ -66,7 +66,7 @@ public class RulebookASTVisitor extends RulebookBaseVisitor<Rulebook.Builder> {
 
   @Override
   public Rulebook.Builder visitRbRule(RulebookParser.RbRuleContext ctx) {
-    ruleBuilder = new Rule.Builder(trimQuote(ctx.String().getText()));
+    ruleBuilder = new Rule.Builder(ctx.Identifier().toString());
     super.visitRbRule(ctx);
     rbBuilder.addRule(ruleBuilder.build());
     return rbBuilder;

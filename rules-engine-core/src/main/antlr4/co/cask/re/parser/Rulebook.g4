@@ -39,7 +39,7 @@ options {
 }
 
 rulebook
-  : 'rulebook' String '{' rbVersion rbMeta rbRules '}' EOF
+  : 'rulebook' Identifier '{' rbVersion rbMeta rbRules '}' EOF
   ;
 
 rbVersion
@@ -55,10 +55,10 @@ rbMeta
   ;
 
 rbRule
-  : 'rule' String '{' descriptionClause givenClause whenClause thenClause '}'
-  | 'rule' String '{' givenClause whenClause thenClause '}'
-  | 'rule' String '{' whenClause thenClause '}'
-  | 'rule' String '{' descriptionClause whenClause thenClause '}'
+  : 'rule' Identifier '{' descriptionClause givenClause whenClause thenClause '}'
+  | 'rule' Identifier '{' givenClause whenClause thenClause '}'
+  | 'rule' Identifier '{' whenClause thenClause '}'
+  | 'rule' Identifier '{' descriptionClause whenClause thenClause '}'
   ;
 
 rbMetaDescription
@@ -177,7 +177,7 @@ Number
  ;
 
 Identifier
- : [a-zA-Z_0-9\-] [a-zA-Z_0-9\-]*
+ : [a-zA-Z] [a-zA-Z_0-9\-\\.]*
  ;
 
 String
