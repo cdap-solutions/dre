@@ -16,6 +16,7 @@ import co.cask.wrangler.registry.CompositeDirectiveRegistry;
 import co.cask.wrangler.registry.SystemDirectiveRegistry;
 import org.apache.commons.jexl3.JexlBuilder;
 import org.apache.commons.jexl3.JexlEngine;
+import org.apache.commons.jexl3.JexlException;
 import org.apache.commons.jexl3.JexlScript;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -53,8 +54,6 @@ public class RuleExecutor {
   public RuleExecutor(Rule rule, ExecutorContext context) throws RuleCompileException {
     try {
       this.script = engine.createScript(rule.getWhen());
-      String when = rule.getWhen();
-      JexlScript script = engine.createScript(when);
       for(List<String> vars : script.getVariables()) {
         for(String var : vars) {
           this.variables.add(var);
@@ -66,6 +65,16 @@ public class RuleExecutor {
     } catch (Exception e) {
       throw new RuleCompileException(e.getMessage(), rule);
     }
+  }
+
+  public boolean validateWhen(String when) throws JexlException {
+    engine.createScript(when);
+    return true;
+  }
+
+  public boolean validateThen(String then) throws Exception {
+    compile(Arrays.asList(then.split(";")));
+    return true;
   }
 
   public boolean shouldExecute(RowActiveSet set) {

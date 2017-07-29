@@ -31,6 +31,16 @@
       <groupId>co.cask.re</groupId>
       <artifactId>rules-engine-core</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>co.cask.wrangker</groupId>
+          <artifactId>wrangler-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>co.cask.wrangker</groupId>
+          <artifactId>wrangler-core</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>co.cask.cdap</groupId>

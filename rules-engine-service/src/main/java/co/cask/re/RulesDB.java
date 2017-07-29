@@ -2,10 +2,15 @@ package co.cask.re;
 
 import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.dataset.table.Row;
+import co.cask.cdap.api.dataset.table.Scanner;
 import co.cask.cdap.api.dataset.table.Table;
 import com.google.common.base.Joiner;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,8 +61,8 @@ public final class RulesDB {
       Bytes.toBytes(rule.getDescription()),
       Bytes.toBytes(rule.getWhen()),
       Bytes.toBytes(rule.getThen()),
-      Bytes.toBytes(System.currentTimeMillis() / 1000),
-      Bytes.toBytes(System.currentTimeMillis() / 1000)
+      Bytes.toBytes(getCurrentTime()),
+      Bytes.toBytes(getCurrentTime())
     };
 
     rules.put(toKey(rule.getId()), columns, values);
@@ -79,7 +84,7 @@ public final class RulesDB {
       Bytes.toBytes(rule.getDescription()),
       Bytes.toBytes(rule.getWhen()),
       Bytes.toBytes(rule.getThen()),
-      Bytes.toBytes(System.currentTimeMillis() / 1000)
+      Bytes.toBytes(getCurrentTime())
     };
 
     rules.put(toKey(id), columns, values);
@@ -155,8 +160,8 @@ public final class RulesDB {
     byte[][] values = new byte[][] {
       Bytes.toBytes(rb.getId()),
       Bytes.toBytes(rb.getDescription()),
-      Bytes.toBytes(System.currentTimeMillis() / 1000),
-      Bytes.toBytes(System.currentTimeMillis() / 1000),
+      Bytes.toBytes(getCurrentTime()),
+      Bytes.toBytes(getCurrentTime()),
       Bytes.toBytes(rb.getUser()),
       Bytes.toBytes(rb.getSource()),
       Bytes.toBytes(1L),
@@ -170,11 +175,11 @@ public final class RulesDB {
     List<String> ruleIds = new ArrayList<>();
     for (Rule rule : rulebook.getRules()) {
       RuleRequest request = new RuleRequest(rule.getName(), rule.getDescription(), rule.getWhen(), rule.getThen());
+      ruleIds.add(rule.getName());
       try {
         createRule(request);
-        ruleIds.add(rule.getName());
       } catch (RuleAlreadyExistsException e) {
-        // no-op if rule id already exists.
+        // Nothing to be done here.
       }
     }
     RulebookRequest rbreq = new RulebookRequest(rulebook.getName(), rulebook.getMeta().getDescription(),
@@ -241,7 +246,7 @@ public final class RulesDB {
     };
 
     byte[][] values = new byte[][] {
-      Bytes.toBytes(System.currentTimeMillis() / 1000),
+      Bytes.toBytes(getCurrentTime()),
       Bytes.toBytes(version++),
       Bytes.toBytes(Joiner.on(",").join(rules))
     };
@@ -278,7 +283,7 @@ public final class RulesDB {
     };
 
     byte[][] values = new byte[][] {
-      Bytes.toBytes(System.currentTimeMillis() / 1000),
+      Bytes.toBytes(getCurrentTime()),
       Bytes.toBytes(version++),
       Bytes.toBytes(Joiner.on(",").join(rules))
     };
@@ -308,8 +313,8 @@ public final class RulesDB {
     byte[][] values = new byte[][] {
       Bytes.toBytes(clonedRulebookId),
       row.get(DESCRIPTION),
-      Bytes.toBytes(System.currentTimeMillis() / 1000),
-      Bytes.toBytes(System.currentTimeMillis() / 1000),
+      Bytes.toBytes(getCurrentTime()),
+      Bytes.toBytes(getCurrentTime()),
       row.get(USER),
       row.get(SOURCE),
       Bytes.toBytes(1L),
@@ -327,6 +332,41 @@ public final class RulesDB {
       );
     }
     rulebook.delete(toKey(rulebookId));
+  }
+
+  public JsonArray getRulebookRules(String rulebookId) throws RulebookNotFoundException, RuleNotFoundException {
+    Row row = rulebook.get(toKey(rulebookId));
+    if (row.isEmpty()) {
+      throw new RulebookNotFoundException(
+        String.format("Rulebook '%s' not found.", rulebookId)
+      );
+    }
+
+    Set<String> ruleSet = convertRulesToSet(row.getString(RULES));
+    JsonArray array = new JsonArray();
+    for (String rule : ruleSet) {
+      JsonObject object = new JsonObject();
+      Row ruleRow = rules.get(toKey(rule));
+      if (ruleRow.isEmpty()) {
+        continue;
+      }
+      object.addProperty(Bytes.toString(ID), ruleRow.getString(ID));
+      object.addProperty(Bytes.toString(DESCRIPTION), ruleRow.getString(DESCRIPTION));
+      object.addProperty(Bytes.toString(CONDITION), ruleRow.getString(CONDITION));
+      object.addProperty(Bytes.toString(CREATED), ruleRow.getLong(CREATED));
+      object.addProperty(Bytes.toString(UPDATED), ruleRow.getLong(UPDATED));
+
+      JsonArray actions = new JsonArray();
+      String then = ruleRow.getString(ACTION);
+      if (then != null) {
+        for (String t : then.split(";")) {
+          actions.add(new JsonPrimitive(t));
+        }
+        object.add(Bytes.toString(ACTION), actions);
+      }
+      array.add(object);
+    }
+    return array;
   }
 
   public String generateRulebook(String rulebookId) throws RulebookNotFoundException, RuleNotFoundException {
@@ -358,8 +398,59 @@ public final class RulesDB {
     return format;
   }
 
+  /**
+   * Lists the rules and rulebooks present in the system.
+   *
+   * @return List of rules in the system.
+   */
+  public List<Map<String, Object>> rules() {
+    List<Map<String, Object>> result = new ArrayList<>();
+    try (Scanner scan = rules.scan(null, null)) {
+      Row next;
+      while ((next = scan.next()) != null) {
+        Map<String, Object> object = new HashMap<>();
+        object.put(Bytes.toString(ID), next.getString(ID));
+        object.put(Bytes.toString(DESCRIPTION), next.getString(DESCRIPTION));
+        object.put(Bytes.toString(CONDITION), next.getString(CONDITION));
+        object.put(Bytes.toString(ACTION), next.getString(ACTION));
+        object.put(Bytes.toString(CREATED), next.getLong(CREATED));
+        object.put(Bytes.toString(UPDATED), next.getLong(UPDATED));
+        result.add(object);
+      }
+    }
+    return result;
+  }
+
+  public List<Map<String, Object>> rulebooks() {
+    List<Map<String, Object>> result = new ArrayList<>();
+    try (Scanner scan = rulebook.scan(null, null)) {
+      //ID, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
+      Row next;
+      while ((next = scan.next()) != null) {
+        Map<String, Object> object = new HashMap<>();
+        object.put(Bytes.toString(ID), next.getString(ID));
+        object.put(Bytes.toString(DESCRIPTION), next.getString(DESCRIPTION));
+        object.put(Bytes.toString(USER), next.getString(USER));
+        object.put(Bytes.toString(SOURCE), next.getString(SOURCE));
+        object.put(Bytes.toString(VERSION), next.getLong(VERSION));
+        object.put(Bytes.toString(RULES), next.getString(RULES));
+        object.put(Bytes.toString(CREATED), next.getLong(CREATED));
+        object.put(Bytes.toString(UPDATED), next.getLong(UPDATED));
+        result.add(object);
+      }
+    }
+    return result;
+  }
+
+  private long getCurrentTime() {
+    return (System.currentTimeMillis() / 1000);
+  }
+
   private Set<String> convertRulesToSet(String rules) {
     Set<String> ruleSet = new HashSet<>();
+    if (rules == null || rules.trim().isEmpty()) {
+      return ruleSet;
+    }
     String[] rulesArray = rules.split(",");
     for (String rule : rulesArray) {
       ruleSet.add(rule);

@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import org.apache.commons.jexl3.JexlException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +18,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -25,6 +27,8 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
+
+import static co.cask.re.ServiceUtils.sendJson;
 
 /**
  * Class description here.
@@ -47,6 +51,24 @@ public class YAREService extends AbstractHttpServiceHandler {
     rulesDB = new RulesDB(rulebook, rules);
   }
 
+  /**
+   * This API request is for validating the 'when' clause specified in the expression.
+   *
+   * @param request to gather information of the request.
+   * @param responder to respond to the service request.
+   */
+  @POST
+  @Path("validate-when")
+  public void validateWhen(HttpServiceRequest request, HttpServiceResponder responder) {
+    try {
+      ServiceUtils.success(responder, "Valid when clause");
+    } catch (JexlException e) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_BAD_REQUEST, e.getMessage());
+    } catch (Exception e) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR, e.getMessage());
+    }
+  }
+
   @POST
   @Path("rules")
   public void create(HttpServiceRequest request, HttpServiceResponder responder) {
@@ -63,12 +85,30 @@ public class YAREService extends AbstractHttpServiceHandler {
       JsonArray values = new JsonArray();
       values.add(new JsonPrimitive(rule.getId()));
       response.add("values", values);
-      ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (RuleAlreadyExistsException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
         String.format("Unexpected error while creating rule. Please check your request. %s", e.getMessage())
+      );
+    }
+  }
+
+  @GET
+  @Path("rules")
+  public void rules(HttpServiceRequest request, HttpServiceResponder responder) {
+    try {
+      List<Map<String, Object>> rules = rulesDB.rules();
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", String.format("Successfully listed rules."));
+      response.addProperty("count", rules.size());
+      response.add("values", gson.toJsonTree(rules));
+      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+    } catch (Exception e) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
+                         String.format("Unexpected error while listing rules. Please check your request. %s", e.getMessage())
       );
     }
   }
@@ -90,7 +130,7 @@ public class YAREService extends AbstractHttpServiceHandler {
       JsonArray values = new JsonArray();
       values.add(new JsonPrimitive(id));
       response.add("values", values);
-      ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (RuleNotFoundException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
@@ -119,7 +159,7 @@ public class YAREService extends AbstractHttpServiceHandler {
         array.add(new JsonPrimitive(rulesDB.retrieveUsingRuleTemplate(id)));
         response.add("values", array);
       }
-      ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (RuleNotFoundException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
@@ -175,13 +215,32 @@ public class YAREService extends AbstractHttpServiceHandler {
       JsonArray values = new JsonArray();
       values.add(new JsonPrimitive(id));
       response.add("values", values);
-      ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (RulebookAlreadyExistsException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
       ServiceUtils.error(responder,HttpURLConnection.HTTP_INTERNAL_ERROR,
                          String.format("Unexpected error while creating rulebook. " +
                                          "Please check your request. %s", e.getMessage())
+      );
+    }
+  }
+
+  @GET
+  @Path("rulebooks")
+  public void rulebooks(HttpServiceRequest request, HttpServiceResponder responder) {
+    try {
+      List<Map<String, Object>> rulebooks = rulesDB.rulebooks();
+
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", String.format("Successfully listed rulebooks."));
+      response.addProperty("count", rulebooks.size());
+      response.add("values", gson.toJsonTree(rulebooks));
+      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+    } catch (Exception e) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
+                         String.format("Unexpected error while listing rulebooks. Please check your request. %s", e.getMessage())
       );
     }
   }
@@ -203,7 +262,7 @@ public class YAREService extends AbstractHttpServiceHandler {
       JsonArray values = new JsonArray();
       values.add(new JsonPrimitive(id));
       response.add("values", values);
-      ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (RuleNotFoundException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
@@ -217,7 +276,7 @@ public class YAREService extends AbstractHttpServiceHandler {
   @GET
   @Path("rulebooks/{rulebook-id}")
   public void retrieveRb(HttpServiceRequest request, HttpServiceResponder responder,
-                       @PathParam("rulebook-id") String id) {
+                         @PathParam("rulebook-id") String id) {
     try {
       String rulebookString = rulesDB.generateRulebook(id);
 
@@ -228,7 +287,29 @@ public class YAREService extends AbstractHttpServiceHandler {
       JsonArray values = new JsonArray();
       values.add(new JsonPrimitive(rulebookString));
       response.add("values", values);
-      ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+    } catch (RuleNotFoundException e) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
+    } catch (Exception e) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
+                         String.format("Unexpected error while generating rulebook. " +
+                                         "Please check your request. %s", e.getMessage())
+      );
+    }
+  }
+
+  @GET
+  @Path("rulebooks/{rulebook-id}/rules")
+  public void retrieveRbRules(HttpServiceRequest request, HttpServiceResponder responder,
+                              @PathParam("rulebook-id") String id) {
+    try {
+      JsonArray rules = rulesDB.getRulebookRules(id);
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", String.format("Successfully listed rules for the rulebook '%s'.", id));
+      response.addProperty("count", rules.size());
+      response.add("values", rules);
+      sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (RuleNotFoundException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
