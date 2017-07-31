@@ -134,6 +134,7 @@ StartsWith : '=^';
 NotStartsWith : '!^';
 EndsWith : '=$';
 NotEndsWith : '!$';
+QuestionColon : '?:';
 PlusEqual : '+=';
 SubEqual : '-=';
 MulEqual : '*=';

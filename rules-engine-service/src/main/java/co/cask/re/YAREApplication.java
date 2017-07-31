@@ -39,6 +39,7 @@ public class YAREApplication extends AbstractApplication {
       Schema.Field.of("updated", Schema.of(Schema.Type.LONG))
     );
 
+
     createDataset("rulebook", Table.class.getName(), DatasetProperties.builder()
       .add(Table.PROPERTY_SCHEMA, rulebookSchema.toString())
       .add(Table.PROPERTY_SCHEMA_ROW_FIELD, "id")
@@ -50,6 +51,6 @@ public class YAREApplication extends AbstractApplication {
       .build());
 
     addService("service",
-               new YAREService());
+               new YARERulebookService());
   }
 }

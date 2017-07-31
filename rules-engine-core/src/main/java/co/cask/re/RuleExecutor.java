@@ -137,8 +137,10 @@ public class RuleExecutor {
     RecipeParser parser = new GrammarBasedParser(migrate, registry);
     parser.initialize(null); // No Directive Context.
     RecipePipeline pipeline = new RecipePipelineExecutor();
-    pipeline.configure(parser, context);
+    pipeline.initialize(parser, context);
     return pipeline;
   }
+
+
 
 }

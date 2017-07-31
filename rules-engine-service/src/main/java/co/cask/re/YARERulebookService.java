@@ -33,8 +33,8 @@ import static co.cask.re.ServiceUtils.sendJson;
 /**
  * Class description here.
  */
-public class YAREService extends AbstractHttpServiceHandler {
-  private static final Logger LOG = LoggerFactory.getLogger(YAREService.class);
+public class YARERulebookService extends AbstractHttpServiceHandler {
+  private static final Logger LOG = LoggerFactory.getLogger(YARERulebookService.class);
   private static final Gson gson = new Gson();
 
   @UseDataSet("rules")
@@ -240,7 +240,7 @@ public class YAREService extends AbstractHttpServiceHandler {
       sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
     } catch (Exception e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                         String.format("Unexpected error while listing rulebooks. Please check your request. %s", e.getMessage())
+                         String.format("Unable to list all rulebooks. %s", e.getMessage())
       );
     }
   }
@@ -267,8 +267,7 @@ public class YAREService extends AbstractHttpServiceHandler {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                         String.format("Unexpected error while updating rulebook. " +
-                                         "Please check your request. %s", e.getMessage())
+                         String.format("Unable to update rulebook. %s", e.getMessage())
       );
     }
   }
@@ -288,12 +287,11 @@ public class YAREService extends AbstractHttpServiceHandler {
       values.add(new JsonPrimitive(rulebookString));
       response.add("values", values);
       sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-    } catch (RuleNotFoundException e) {
+    } catch (RuleNotFoundException | RulebookNotFoundException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                         String.format("Unexpected error while generating rulebook. " +
-                                         "Please check your request. %s", e.getMessage())
+                         String.format("Unable to retrieve rulebook. %s", e.getMessage())
       );
     }
   }
@@ -310,12 +308,11 @@ public class YAREService extends AbstractHttpServiceHandler {
       response.addProperty("count", rules.size());
       response.add("values", rules);
       sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-    } catch (RuleNotFoundException e) {
+    } catch (RuleNotFoundException | RulebookNotFoundException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                         String.format("Unexpected error while generating rulebook. " +
-                                         "Please check your request. %s", e.getMessage())
+                         String.format("Unable to retrieve rules for rulebook. %s", e.getMessage())
       );
     }
   }
@@ -331,8 +328,7 @@ public class YAREService extends AbstractHttpServiceHandler {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                         String.format("Unexpected error while deleting the rulebook. " +
-                                         "Please check your request. %s", e.getMessage())
+                         String.format("Unable to delete rulebook. %s", e.getMessage())
       );
     }
   }
@@ -344,12 +340,11 @@ public class YAREService extends AbstractHttpServiceHandler {
     try {
       rulesDB.addRuleToRulebook(rbId, id);
       ServiceUtils.success(responder, String.format("Successfully added rule '%s' to rulebook '%s'", id, rbId));
-    } catch (RulebookNotFoundException e) {
+    } catch (RulebookNotFoundException | RuleNotFoundException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                         String.format("Unexpected error while adding rule to rulebook. " +
-                                         "Please check your request. %s", e.getMessage())
+                         String.format("Unable to add rule to rulebook. %s", e.getMessage())
       );
     }
   }
@@ -361,12 +356,11 @@ public class YAREService extends AbstractHttpServiceHandler {
     try {
       rulesDB.removeRuleFromRulebook(rbId, id);
       ServiceUtils.success(responder, String.format("Successfully removed rule '%s' to rulebook '%s'", id, rbId));
-    } catch (RulebookNotFoundException e) {
+    } catch (RulebookNotFoundException | RuleNotFoundException e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
     } catch (Exception e) {
       ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                         String.format("Unexpected error while removing rule from rulebook. " +
-                                         "Please check your request. %s", e.getMessage())
+                         String.format("Unable to remove rule from rulebook. %s", e.getMessage())
       );
     }
   }

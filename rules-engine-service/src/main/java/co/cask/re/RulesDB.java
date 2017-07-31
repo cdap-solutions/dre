@@ -24,9 +24,24 @@ public final class RulesDB {
   private final Table rulebook;
   private final Table rules;
 
-  private static final String RULE_TEMPLATE = "rule %s { description '%s' when(%s) then { %s } }";
-  private static final String RULEBOOK_TEMPLATE = "rulebook %s { version %d meta { description '%s' " +
-    "created-date %d updated-date %d source '%s' user '%s' } %s }";
+  private static final String RULE_TEMPLATE = "rule %s {\n" +
+    "  description '%s'\n" +
+    "  when(%s) then {\n" +
+    "    %s\n" +
+    "  }\n" +
+    "}";
+
+  private static final String RULEBOOK_TEMPLATE = "rulebook %s {\n" +
+    "  version %d\n" +
+    "  meta {\n" +
+    "    description '%s'\n" +
+    "    created-date %d\n" +
+    "    updated-date %d\n" +
+    "    source '%s'\n" +
+    "    user '%s'\n" +
+    "  }\n" +
+    "  %s\n" +
+    "}";
 
   private static final byte[] ID = Bytes.toBytes("id");
   private static final byte[] DESCRIPTION = Bytes.toBytes("description");
@@ -205,6 +220,7 @@ public final class RulesDB {
     };
 
     long version = row.getLong(VERSION);
+    version = version + 1;
     byte[][] values = new byte[][] {
       Bytes.toBytes(rb.getDescription()),
       Bytes.toBytes(rb.getUser()),
@@ -245,9 +261,10 @@ public final class RulesDB {
       UPDATED, VERSION, RULES
     };
 
+    version = version + 1;
     byte[][] values = new byte[][] {
       Bytes.toBytes(getCurrentTime()),
-      Bytes.toBytes(version++),
+      Bytes.toBytes(version),
       Bytes.toBytes(Joiner.on(",").join(rules))
     };
     rulebook.put(toKey(rulebookId), columns, values);
@@ -264,27 +281,23 @@ public final class RulesDB {
 
     if (rules.get(toKey(ruleId)).isEmpty()) {
       throw new RuleNotFoundException(
-        String.format("Attempt to remove rule '%s' to rulebook '%s' failed as rule doesn't exist in rules database.",
+        String.format("Attempt to remove rule '%s' from rulebook '%s' failed as rule doesn't exist in rules database.",
                       rulebookId, ruleId)
       );
     }
 
     long version = row.getLong(VERSION);
     Set<String> rules = convertRulesToSet(row.getString(RULES));
-    if (rules.contains(ruleId)) {
-      throw new RuleAlreadyExistsException(
-        String.format("Rule '%s' already exists in the rulebook '%s'.", ruleId, rulebookId)
-      );
-    }
     rules.remove(ruleId);
 
     byte[][] columns = new byte[][] {
       UPDATED, VERSION, RULES
     };
 
+    version = version + 1;
     byte[][] values = new byte[][] {
       Bytes.toBytes(getCurrentTime()),
-      Bytes.toBytes(version++),
+      Bytes.toBytes(version),
       Bytes.toBytes(Joiner.on(",").join(rules))
     };
     rulebook.put(toKey(rulebookId), columns, values);
