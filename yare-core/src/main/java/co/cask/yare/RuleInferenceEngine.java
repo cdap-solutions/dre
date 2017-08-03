@@ -48,6 +48,7 @@ public class RuleInferenceEngine implements InferenceEngine {
       List<RuleExecutor> unselected = new ArrayList<>();
       for(RuleExecutor executable : workingSet) {
         if ((executable.shouldExecute(rowSet) && executable.when(rowSet)) && !executed.contains(executable.getRule().getName())) {
+          registerMetric(executable);
           selected.add(executable);
         } else {
           unselected.add(executable);
@@ -74,6 +75,14 @@ public class RuleInferenceEngine implements InferenceEngine {
       workingSet = unselected;
     }
     return row;
+  }
+
+  private void registerMetric(RuleExecutor executor) {
+    String metricName = String.format("%s.%s.%s.fired", rulebook.getName(),
+                                      rulebook.getVersion(), executor.getRule().getName());
+    if (executorContext != null) {
+      executorContext.getMetrics().count(metricName, 1);
+    }
   }
 
 

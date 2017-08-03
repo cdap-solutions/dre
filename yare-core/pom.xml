@@ -88,11 +88,6 @@
       <version>${netty-http.version}</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>co.cask.re</groupId>
-      <artifactId>yare-api</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
-    </dependency>
   </dependencies>
 
   <build>

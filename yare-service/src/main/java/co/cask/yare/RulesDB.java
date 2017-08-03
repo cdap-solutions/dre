@@ -67,6 +67,28 @@ public final class RulesDB {
       );
     }
 
+    if (rule.getId() == null || rule.getId().trim().isEmpty()) {
+      throw new IllegalArgumentException("Rule requires a mandatory field 'id'.");
+    }
+
+    if (rule.getDescription() == null || rule.getDescription().trim().isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("Rule '%s' requires the mandatory field 'description'", rule.getId())
+      );
+    }
+
+    if (rule.getWhen() == null || rule.getWhen().trim().isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("Rule '%s' requires mandatory field 'when'", rule.getId())
+      );
+    }
+
+    if (rule.getThen() == null || rule.getWhen().trim().isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("Rule '%s' requires the mandatory field 'then'", rule.getId())
+      );
+    }
+
     byte[][] columns = new byte[][] {
       ID, DESCRIPTION, CONDITION, ACTION, CREATED, UPDATED
     };
@@ -88,6 +110,24 @@ public final class RulesDB {
     if (row.isEmpty()) {
       throw new RuleNotFoundException(
         String.format("Rule '%s' does not exist. Create it first with a POST request.", rule.getId())
+      );
+    }
+
+    if (rule.getDescription() == null || rule.getDescription().trim().isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("Rule '%s' requires the mandatory field 'description'", rule.getId())
+      );
+    }
+
+    if (rule.getWhen() == null || rule.getWhen().trim().isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("Rule '%s' requires mandatory field 'when'", rule.getId())
+      );
+    }
+
+    if (rule.getThen() == null || rule.getWhen().trim().isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("Rule '%s' requires the mandatory field 'then'", rule.getId())
       );
     }
 
