@@ -4,35 +4,41 @@ import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.dataset.table.Row;
 import co.cask.cdap.api.dataset.table.Scanner;
 import co.cask.cdap.api.dataset.table.Table;
+import co.cask.cdap.api.messaging.MessagePublisher;
 import com.google.common.base.Joiner;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 /**
  * Class description here.
  */
 public final class RulesDB {
+  private static final Logger LOG = LoggerFactory.getLogger(RulesDB.class);
   private final Table rulebook;
   private final Table rules;
+  private final MessagePublisher publisher;
 
-  private static final String RULE_TEMPLATE = "rule %s {\n" +
-    "  description '%s'\n" +
-    "  when(%s) then {\n" +
-    "    %s\n" +
-    "  }\n" +
-    "}";
+  private static final String RULE_TEMPLATE = "\n" +
+    "  rule %s {\n" +
+    "    description '%s'\n" +
+    "    when(%s) then {\n" +
+    "      %s\n" +
+    "    }\n" +
+    "  }" +
+    "\n";
 
   private static final String RULEBOOK_TEMPLATE = "rulebook %s {\n" +
     "  version %d\n" +
+    "\n" +
     "  meta {\n" +
     "    description '%s'\n" +
     "    created-date %d\n" +
@@ -54,9 +60,10 @@ public final class RulesDB {
   private static final byte[] VERSION = Bytes.toBytes("version");
   private static final byte[] RULES = Bytes.toBytes("rules");
 
-  public RulesDB(Table rulebook, Table rules) {
+  public RulesDB(Table rulebook, Table rules, MessagePublisher publisher) {
     this.rulebook = rulebook;
     this.rules = rules;
+    this.publisher = publisher;
   }
 
   public void createRule(RuleRequest rule) throws RuleAlreadyExistsException {
@@ -101,7 +108,6 @@ public final class RulesDB {
       Bytes.toBytes(getCurrentTime()),
       Bytes.toBytes(getCurrentTime())
     };
-
     rules.put(toKey(rule.getId()), columns, values);
   }
 
@@ -256,8 +262,10 @@ public final class RulesDB {
     }
 
     byte[][] columns = new byte[][] {
-      DESCRIPTION, USER, SOURCE
+      DESCRIPTION, USER, SOURCE, VERSION, RULES
     };
+
+    LOG.info("Ordering of rules {}.", rb.getRulesString());
 
     long version = row.getLong(VERSION);
     version = version + 1;
@@ -289,7 +297,7 @@ public final class RulesDB {
     }
 
     long version = row.getLong(VERSION);
-    Set<String> rules = convertRulesToSet(row.getString(RULES));
+    List<String> rules = convertRulesToSet(row.getString(RULES));
     if (rules.contains(ruleId)) {
       throw new RuleAlreadyExistsException(
         String.format("Rule '%s' already exists in the rulebook '%s'.", ruleId, rulebookId)
@@ -327,7 +335,7 @@ public final class RulesDB {
     }
 
     long version = row.getLong(VERSION);
-    Set<String> rules = convertRulesToSet(row.getString(RULES));
+    List<String> rules = convertRulesToSet(row.getString(RULES));
     rules.remove(ruleId);
 
     byte[][] columns = new byte[][] {
@@ -395,7 +403,7 @@ public final class RulesDB {
       );
     }
 
-    Set<String> ruleSet = convertRulesToSet(row.getString(RULES));
+    List<String> ruleSet = convertRulesToSet(row.getString(RULES));
     JsonArray array = new JsonArray();
     for (String rule : ruleSet) {
       JsonObject object = new JsonObject();
@@ -430,7 +438,7 @@ public final class RulesDB {
       );
     }
 
-    Set<String> ruleSet = convertRulesToSet(row.getString(RULES));
+    List<String> ruleSet = convertRulesToSet(row.getString(RULES));
     List<String> ruleOutput = new ArrayList<>();
     for (String rule : ruleSet) {
       Row ruleRow = rules.get(toKey(rule));
@@ -499,8 +507,8 @@ public final class RulesDB {
     return (System.currentTimeMillis() / 1000);
   }
 
-  private Set<String> convertRulesToSet(String rules) {
-    Set<String> ruleSet = new HashSet<>();
+  private List<String> convertRulesToSet(String rules) {
+    List<String> ruleSet = new ArrayList<>();
     if (rules == null || rules.trim().isEmpty()) {
       return ruleSet;
     }

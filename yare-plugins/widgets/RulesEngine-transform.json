@@ -7,7 +7,7 @@
       "label": "Rule Engine",
       "properties": [
         {
-          "widget-type": "scala-editor",
+          "widget-type": "rules-engine-editor",
           "label": "Rule Book",
           "name": "rulebook",
           "widget-attributes" : {

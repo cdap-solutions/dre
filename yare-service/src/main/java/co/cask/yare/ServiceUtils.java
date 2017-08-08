@@ -22,7 +22,7 @@ public final class ServiceUtils {
     JsonObject error = new JsonObject();
     error.addProperty("status", status);
     error.addProperty("message", message);
-    sendJson(responder, HttpURLConnection.HTTP_INTERNAL_ERROR, error.toString());
+    sendJson(responder, status, error.toString());
   }
 
   /**

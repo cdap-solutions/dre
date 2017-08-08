@@ -46,7 +46,7 @@ public class YARERulebookService extends AbstractHttpServiceHandler {
   @Override
   public void initialize(HttpServiceContext context) throws Exception {
     super.initialize(context);
-    rulesDB = new RulesDB(rulebook, rules);
+    rulesDB = new RulesDB(rulebook, rules, context.getMessagePublisher());
   }
 
   /**
@@ -202,7 +202,8 @@ public class YARERulebookService extends AbstractHttpServiceHandler {
         rulesDB.createRulebook(rulebook);
         id = rulebook.getName();
       } else {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_BAD_REQUEST, "Unsupported content type.");
+        String header = handler.getHeader(RequestExtractor.CONTENT_TYPE, "");
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_BAD_REQUEST, "Unsupported content type " + header + ".");
         return;
       }
 
