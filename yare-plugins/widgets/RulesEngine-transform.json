@@ -13,7 +13,11 @@
           "widget-attributes" : {
             "placeholder": "Paste rule book here."
           }
-        }
+        },
+	{
+	  "widget-type": "hidden",
+	  "name": "rulebookid"
+	}
       ]
     }
   ],
