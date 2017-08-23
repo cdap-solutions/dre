@@ -25,6 +25,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Class description here.
@@ -169,9 +170,15 @@ public final class RulesEngine extends Transform<StructuredRecord, StructuredRec
     @Macro
     private final String schema;
 
-    public Config(String rulebook, String schema) {
+    @Name("rulebookid")
+    @Description("Hidden property used only by UI")
+    @Nullable
+    private String rulebookid;
+
+    public Config(String rulebook, String schema, String rulebookid) {
       this.rulebook = rulebook;
       this.schema = schema;
+      this.rulebookid = rulebookid;
     }
   }
 }
