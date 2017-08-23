@@ -175,7 +175,7 @@ public final class RulesEngine extends Transform<StructuredRecord, StructuredRec
     @Nullable
     private String rulebookid;
 
-    public Config(String rulebook, String schema) {
+    public Config(String rulebook, String schema, String rulebookid) {
       this.rulebook = rulebook;
       this.schema = schema;
       this.rulebookid = rulebookid;
