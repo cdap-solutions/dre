@@ -18,19 +18,19 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>co.cask.re</groupId>
-  <artifactId>yare</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
-  <name>YARE</name>
+  <artifactId>dre</artifactId>
+  <version>1.0.0</version>
+  <name>DRE</name>
   <packaging>pom</packaging>
-  <description>100% configurable, light weight, extensible rules Engine with a simple and intuitive DSL and Interface</description>
+  <description>100% configurable, light weight, extensible Distributed Rules Engine (DRE) with a simple and intuitive DSL and Interface</description>
   <url>http://github.com/hydrator/rules-engine</url>
 
   <modules>
-    <module>yare-api</module>
-    <module>yare-plugins</module>
-    <module>yare-service</module>
-    <module>yare-core</module>
-    <module>yare-convertors</module>
+    <module>dre-api</module>
+    <module>dre-plugins</module>
+    <module>dre-service</module>
+    <module>dre-core</module>
+    <module>dre-convertors</module>
   </modules>
 
   <licenses>

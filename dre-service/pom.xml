@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <artifactId>yare</artifactId>
+    <artifactId>dre</artifactId>
     <groupId>co.cask.re</groupId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>yare-service</artifactId>
-  <name>YARE Service</name>
+  <artifactId>dre-service</artifactId>
+  <name>Distributed Rules Engine Service</name>
 
   <properties>
     <app.main.class>co.cask.yare.YAREApplication</app.main.class>
@@ -24,12 +24,12 @@
     </dependency>
     <dependency>
       <groupId>co.cask.re</groupId>
-      <artifactId>yare-api</artifactId>
+      <artifactId>dre-api</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>co.cask.re</groupId>
-      <artifactId>yare-core</artifactId>
+      <artifactId>dre-core</artifactId>
       <version>${project.version}</version>
       <exclusions>
         <exclusion>
