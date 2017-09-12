@@ -81,7 +81,9 @@ public class RuleInferenceEngine implements InferenceEngine {
     String metricName = String.format("%s.%s.%s.fired", rulebook.getName(),
                                       rulebook.getVersion(), executor.getRule().getName());
     if (executorContext != null) {
-      executorContext.getMetrics().count(metricName, 1);
+      executorContext.getMetrics().pipelineCount(metricName, 1);
+      executorContext.getMetrics().pipelineCount(executor.getRule().getName() + ".fired", 1);
+      executorContext.getMetrics().pipelineCount(rulebook.getName() + "." + executor.getRule().getName() + ".fired", 1);
     }
   }
 

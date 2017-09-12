@@ -130,25 +130,27 @@ public final class RulesEngine extends Transform<StructuredRecord, StructuredRec
     try {
       rows.clear();
       row = ie.infer(row);
-      rows.add(row);
-      List<StructuredRecord> records = convertor.toStructureRecord(rows, oSchema);
-      for (StructuredRecord record : records) {
-        StructuredRecord.Builder builder = StructuredRecord.builder(oSchema);
-        // Iterate through output schema, if the 'record' doesn't have it, then
-        // attempt to take if from 'input'.
-        for (Schema.Field field : oSchema.getFields()) {
-          Object wObject = record.get(field.getName()); // wrangled records
-          if (wObject == null) {
-            builder.set(field.getName(), null);
-          } else {
-            if (wObject instanceof String) {
-              builder.convertAndSet(field.getName(), (String) wObject);
+      if (row != null) {
+        rows.add(row);
+        List<StructuredRecord> records = convertor.toStructureRecord(rows, oSchema);
+        for (StructuredRecord record : records) {
+          StructuredRecord.Builder builder = StructuredRecord.builder(oSchema);
+          // Iterate through output schema, if the 'record' doesn't have it, then
+          // attempt to take if from 'input'.
+          for (Schema.Field field : oSchema.getFields()) {
+            Object wObject = record.get(field.getName()); // wrangled records
+            if (wObject == null) {
+              builder.set(field.getName(), null);
             } else {
-              builder.set(field.getName(), wObject);
+              if (wObject instanceof String) {
+                builder.convertAndSet(field.getName(), (String) wObject);
+              } else {
+                builder.set(field.getName(), wObject);
+              }
             }
           }
+          emitter.emit(builder.build());
         }
-        emitter.emit(builder.build());
       }
     } catch (SkipRowException e) {
       String message = String.format("Fired rulebook '%s', version '%s', rule name '%s', description '%s', condition {%s}.",

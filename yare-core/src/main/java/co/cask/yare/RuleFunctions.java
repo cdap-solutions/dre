@@ -11,6 +11,12 @@ public class RuleFunctions {
   public static final int UNI_SUR_LOW_START = 0xDC00;
   public static final int UNI_SUR_LOW_END = 0xDFFF;
 
+  /**
+   * Checks if field specified exists or not, i.e. if it's null or not.
+   *
+   * @param value to be checked for existence.
+   * @return true if it's not null, false otherwise.
+   */
   public static boolean present(Object value) {
     if (value == null) {
       return false;
@@ -18,17 +24,44 @@ public class RuleFunctions {
     return true;
   }
 
-  public static boolean isnull(Object value) {
-    if (value == null) {
-      return true;
+  /**
+   * Checks if field specified exists or not, i.e. if it's null or not.
+   *
+   * @param field to be checked for existence.
+   * @return true if it's not null, false otherwise.
+   */
+  public static boolean has(Object field) {
+    if (field == null) {
+      return false;
     }
-    return false;
+    return true;
   }
 
+  /**
+   * Checks if the value is specifical null or not.
+   *
+   * @param value to be checked for null.
+   * @return true if null, false otherwise.
+   */
+  public static boolean isnull(Object value) {
+    return !has(value);
+  }
+
+  /**
+   * Checks if the character is a hex character or not.
+   * @param c character to check whether it's hex or not.
+   * @return true if it's hex, false otherwise.
+   */
   public static boolean ishex(char c) {
     return c >= 65 && c <= 70 || c >= 48 && c <= 57;
   }
 
+  /**
+   * Checks if a string value is null or empty.
+   *
+   * @param value to checked for null or empty.
+   * @return true if null or empty, false otherwise.
+   */
   public static boolean isnullorempty(String value) {
     if (value == null) {
       return true;

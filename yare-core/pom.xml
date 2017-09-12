@@ -8,13 +8,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>yare-core</artifactId>
-  <name>Yet Another Rules Engine Core</name>
+  <name>YARE Core</name>
 
   <dependencies>
     <dependency>
       <groupId>co.cask.wrangler</groupId>
       <artifactId>wrangler-core</artifactId>
-      <version>3.0.0-SNAPSHOT</version>
+      <version>${wrangler.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>

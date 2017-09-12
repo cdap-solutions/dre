@@ -33,7 +33,7 @@ import java.util.Map;
  */
 public class RuleExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(RuleExecutor.class);
-
+  
   private static final JexlEngine engine = new JexlBuilder()
     .namespaces(getRegisteredFunctions())
     .silent(false)

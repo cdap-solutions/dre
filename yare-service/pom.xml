@@ -8,7 +8,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>yare-service</artifactId>
-  <name>Yet Another Rules Engine Service</name>
+  <name>YARE Service</name>
 
   <properties>
     <app.main.class>co.cask.yare.YAREApplication</app.main.class>
@@ -33,11 +33,11 @@
       <version>${project.version}</version>
       <exclusions>
         <exclusion>
-          <groupId>co.cask.wrangker</groupId>
+          <groupId>co.cask.wrangler</groupId>
           <artifactId>wrangler-api</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>co.cask.wrangker</groupId>
+          <groupId>co.cask.wrangler</groupId>
           <artifactId>wrangler-core</artifactId>
         </exclusion>
       </exclusions>

@@ -8,7 +8,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>yare-plugins</artifactId>
-  <name>Yet Another Rules Engine Plugins</name>
+  <name>YARE Plugins</name>
 
   <properties>
   <!-- properties for script budirectivestep that creates the config files for the artifacts -->
