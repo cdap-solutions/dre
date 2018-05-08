@@ -5,9 +5,9 @@ Here are instructions to get you started if you want to contribute to CDAP DRE.
 ## Security Reports
 
 Please *DO NOT* file an issue for security related problems. 
-Please send your reports to `security@cask.co <mailto:security@cask.co>`__.
+Please send your reports to <security@cask.co>
 
-##Creating Issues
+## Creating Issues
 
 In order to file bugs or new feature requests, please use http://issues.cask.co.
 
@@ -19,15 +19,14 @@ While proposing a new feature, we look for:
 
   * Please review existing proposals to make sure the feature proposal doesn't already exist
 
-* Email the `CDAP mailing list <mailto:cdap-dev@googlegroups.com>`__ 
+* Email the CDAP mailing list at <cdap-dev@googlegroups.com>
 
   * Include "Feature: <Name of the feature>" as the subject of the email
   * Include a link to the issue
 
 ## Build Environment
 
-For instructions on building and deploying please see `README.md` up your development environment, please see the
-`README.md <https://github.com/cask-solutions/dre/develop/README.md>`__ file.
+For instructions on building and deploying please see [README.md](https://github.com/cask-solutions/dre/develop/README.md)
 
 ## Contribution Guidelines
 
@@ -39,14 +38,14 @@ problem as well. This will help us in prioritization.
 
 ### Discuss on the Mailing List
 We recommend that you discuss your plan on the mailing list 
-`cdap-developers@cask.co <mailto:cdap-developers@cask.co>`__
+<cdap-developers@cask.co>
 before starting to code. This gives us a chance to add feedback and help point you in the right direction.
 
 ### Pull Requests
 We love having pull requests and we do our best to review them as quickly as possible. 
 If your pull request is not accepted on the first try, don't be discouraged. 
 If there is a problem with the implementation, you will receive feedback on what to improve.
-Add a link to your PR on the issue, and in an email to `cdap-developers@cask.co <mailto:cdap-developers@cask.co>`__.
+Add a link to your PR on the issue, and in an email to <cdap-developers@cask.co>.
 
 ### Conventions
 * Fork the repository and make changes on your fork in a feature branch. The branch name should be 
