@@ -19,7 +19,7 @@
 
   <groupId>co.cask.re</groupId>
   <artifactId>dre</artifactId>
-  <version>1.1.0-SNAPSHOT</version>
+  <version>1.1.0</version>
   <name>DRE</name>
   <packaging>pom</packaging>
   <description>100% configurable, light weight, extensible Distributed Rules Engine (DRE) with a simple and intuitive DSL and Interface</description>
@@ -64,8 +64,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <cdap.version>4.3.0</cdap.version>
-    <wrangler.version>3.2.0-SNAPSHOT</wrangler.version>
+    <cdap.version>5.1.0</cdap.version>
+    <wrangler.version>3.2.0</wrangler.version>
     <commons-jexl.version>3.0</commons-jexl.version>
     <commons-csv.version>1.4</commons-csv.version>
     <commons-lang.version>3.5</commons-lang.version>
