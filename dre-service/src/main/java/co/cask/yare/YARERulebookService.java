@@ -65,6 +65,12 @@ public class YARERulebookService extends AbstractHttpServiceHandler {
     rulesDB = new RulesDB(rulebook, rules, context.getMessagePublisher());
   }
 
+  @GET
+  @Path("health")
+  public void healthCheck(HttpServiceRequest request, HttpServiceResponder responder) {
+    responder.sendStatus(HttpURLConnection.HTTP_OK);
+  }
+
   /**
    * This API request is for validating the 'when' clause specified in the expression.
    *
