@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright © 2017-2018 Cask Data, Inc.
+  ~ Copyright © 2017-2019 Cask Data, Inc.
   ~
   ~  Licensed under the Apache License, Version 2.0 (the "License"); you may not
   ~  use this file except in compliance with the License. You may obtain a copy of
@@ -17,7 +17,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>co.cask.re</groupId>
+  <groupId>io.cdap.re</groupId>
   <artifactId>dre</artifactId>
   <version>1.3.0-SNAPSHOT</version>
   <name>DRE</name>
@@ -44,17 +44,17 @@
 
   <developers>
     <developer>
-      <name>Cask Data</name>
-      <email>cask-dev@googlegroups.com</email>
-      <organization>Cask Data, Inc.</organization>
-      <organizationUrl>http://cask.co</organizationUrl>
+      <name>CDAP</name>
+      <email>cdap-dev@googlegroups.com</email>
+      <organization>CDAP</organization>
+      <organizationUrl>http://cdap.io</organizationUrl>
     </developer>
   </developers>
 
   <scm>
-    <connection>scm:git:https://github.com/cask-solutions/yare.git</connection>
-    <developerConnection>scm:git:git@github.com:cask-solutions/yare.git</developerConnection>
-    <url>https://github.com/cask-solutions/yare.git</url>
+    <connection>scm:git:https://github.com/cdap-solutions/dre.git</connection>
+    <developerConnection>scm:git:git@github.com:cdap-solutions/dre.git</developerConnection>
+    <url>https://github.com/cdap-solutions/dre.git</url>
     <tag>HEAD</tag>
   </scm>
 
@@ -212,7 +212,7 @@
               </links>
               <doctitle>${project.name} ${project.version}</doctitle>
               <bottom>
-                <![CDATA[Copyright &#169; {currentYear} <a href="http://cask.co" target="_blank">Cask Data, Inc.</a> Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Apache License, Version 2.0</a>.]]>
+                <![CDATA[Copyright &#169; {currentYear} <a href="http://cdap.io" target="_blank">CDAP</a> Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Apache License, Version 2.0</a>.]]>
               </bottom>
             </configuration>
             <executions>
