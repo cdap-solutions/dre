@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright © 2017-2018 Cask Data, Inc.
+  ~ Copyright © 2017-2019 Cask Data, Inc.
   ~
   ~  Licensed under the Apache License, Version 2.0 (the "License"); you may not
   ~  use this file except in compliance with the License. You may obtain a copy of
@@ -18,7 +18,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>dre</artifactId>
-    <groupId>co.cask.re</groupId>
+    <groupId>io.cdap.re</groupId>
     <version>1.2.0</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -30,14 +30,14 @@
   <!-- properties for script budirectivestep that creates the config files for the artifacts -->
   <widgets.dir>widgets</widgets.dir>
   <docs.dir>docs</docs.dir>
-  <app.parents>system:cdap-data-pipeline[5.0.0,7.0.0),system:cdap-data-streams[5.0.0,7.0.0)</app.parents>
+  <app.parents>system:cdap-data-pipeline[6.0.0-SNAPSHOT,7.0.0-SNAPSHOT),system:cdap-data-streams[6.0.0-SNAPSHOT,7.0.0-SNAPSHOT)</app.parents>
   <!-- this is here because project.basedir evaluates to null in the script budirectivestep -->
   <main.basedir>${project.basedir}</main.basedir>
   </properties>
 
   <dependencies>
     <dependency>
-      <groupId>co.cask.re</groupId>
+      <groupId>io.cdap.re</groupId>
       <artifactId>dre-core</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -262,7 +262,7 @@
               </links>
               <doctitle>${project.name} ${project.version}</doctitle>
               <bottom>
-                <![CDATA[Copyright &#169; {currentYear} <a href="http://cask.co" target="_blank">Cask Data, Inc.</a> Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Apache License, Version 2.0</a>.]]>
+                <![CDATA[Copyright &#169; {currentYear} <a href="http://cdap.io" target="_blank">CDAP</a> Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Apache License, Version 2.0</a>.]]>
               </bottom>
             </configuration>
             <executions>

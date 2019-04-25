@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright © 2017-2018 Cask Data, Inc.
+  ~ Copyright © 2017-2019 Cask Data, Inc.
   ~
   ~  Licensed under the Apache License, Version 2.0 (the "License"); you may not
   ~  use this file except in compliance with the License. You may obtain a copy of
@@ -18,7 +18,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>dre</artifactId>
-    <groupId>co.cask.re</groupId>
+    <groupId>io.cdap.re</groupId>
     <version>1.2.0</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -38,7 +38,7 @@
       <version>${guava.version}</version>
     </dependency>
     <dependency>
-      <groupId>co.cask.re</groupId>
+      <groupId>io.cdap.re</groupId>
       <artifactId>dre-api</artifactId>
       <version>${project.version}</version>
     </dependency>
