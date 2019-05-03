@@ -49,22 +49,22 @@
       <version>${project.version}</version>
       <exclusions>
         <exclusion>
-          <groupId>co.cask.wrangler</groupId>
+          <groupId>io.cdap.wrangler</groupId>
           <artifactId>wrangler-api</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>co.cask.wrangler</groupId>
+          <groupId>io.cdap.wrangler</groupId>
           <artifactId>wrangler-core</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-etl-api</artifactId>
       <version>${cdap.version}</version>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-etl-core</artifactId>
       <version>${cdap.version}</version>
     </dependency>
@@ -144,13 +144,13 @@
       <version>3.5</version>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>hydrator-test</artifactId>
       <version>${cdap.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-unit-test</artifactId>
       <version>${cdap.version}</version>
       <scope>test</scope>
@@ -160,7 +160,7 @@
           <artifactId>hive-exec</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>co.cask.cdap</groupId>
+          <groupId>io.cdap.cdap</groupId>
           <artifactId>cdap-explore-jdbc</artifactId>
         </exclusion>
       </exclusions>

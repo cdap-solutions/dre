@@ -16,7 +16,7 @@
 
 package io.cdap.re;
 
-import co.cask.wrangler.api.Row;
+import io.cdap.wrangler.api.Row;
 import org.junit.Assert;
 import org.junit.Test;
 

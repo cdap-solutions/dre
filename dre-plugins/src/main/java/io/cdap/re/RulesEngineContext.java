@@ -16,11 +16,11 @@
 
 package io.cdap.re;
 
-import co.cask.cdap.etl.api.Lookup;
-import co.cask.cdap.etl.api.StageMetrics;
-import co.cask.cdap.etl.api.TransformContext;
-import co.cask.wrangler.api.ExecutorContext;
-import co.cask.wrangler.api.TransientStore;
+import io.cdap.cdap.etl.api.Lookup;
+import io.cdap.cdap.etl.api.StageMetrics;
+import io.cdap.cdap.etl.api.TransformContext;
+import io.cdap.wrangler.api.ExecutorContext;
+import io.cdap.wrangler.api.TransientStore;
 
 import java.net.URL;
 import java.util.Map;

@@ -16,7 +16,7 @@
 
 package io.cdap.re;
 
-import co.cask.cdap.api.service.http.HttpServiceRequest;
+import io.cdap.cdap.api.service.http.HttpServiceRequest;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;

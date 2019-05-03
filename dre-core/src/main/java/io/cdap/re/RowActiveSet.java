@@ -16,8 +16,8 @@
 
 package io.cdap.re;
 
-import co.cask.wrangler.api.Row;
 import edu.emory.mathcs.backport.java.util.TreeMap;
+import io.cdap.wrangler.api.Row;
 import org.apache.commons.jexl3.JexlContext;
 
 import java.util.Map;

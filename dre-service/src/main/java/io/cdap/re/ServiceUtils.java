@@ -16,8 +16,8 @@
 
 package io.cdap.re;
 
-import co.cask.cdap.api.service.http.HttpServiceResponder;
 import com.google.gson.JsonObject;
+import io.cdap.cdap.api.service.http.HttpServiceResponder;
 
 import java.net.HttpURLConnection;
 import java.nio.ByteBuffer;

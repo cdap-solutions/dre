@@ -16,8 +16,8 @@
 
 package io.cdap.re;
 
-import co.cask.wrangler.api.RecipeException;
-import co.cask.wrangler.api.Row;
+import io.cdap.wrangler.api.RecipeException;
+import io.cdap.wrangler.api.Row;
 
 /**
  * Class description here.

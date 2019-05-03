@@ -16,10 +16,11 @@
 
 package io.cdap.re;
 
-import co.cask.cdap.api.app.AbstractApplication;
-import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.api.dataset.DatasetProperties;
-import co.cask.cdap.api.dataset.table.Table;
+
+import io.cdap.cdap.api.app.AbstractApplication;
+import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.dataset.DatasetProperties;
+import io.cdap.cdap.api.dataset.table.Table;
 
 /**
  * Class description here.
