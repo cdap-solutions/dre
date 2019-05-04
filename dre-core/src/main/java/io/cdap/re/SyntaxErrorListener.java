@@ -17,7 +17,7 @@
 package io.cdap.re;
 
 import io.cdap.re.parser.RulebookLexer;
-import co.cask.wrangler.api.parser.SyntaxError;
+import io.cdap.wrangler.api.parser.SyntaxError;
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.NoViableAltException;
 import org.antlr.v4.runtime.Parser;

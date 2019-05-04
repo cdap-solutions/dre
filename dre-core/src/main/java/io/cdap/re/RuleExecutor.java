@@ -16,20 +16,20 @@
 
 package io.cdap.re;
 
-import co.cask.cdap.api.common.Bytes;
-import co.cask.wrangler.api.DirectiveLoadException;
-import co.cask.wrangler.api.DirectiveNotFoundException;
-import co.cask.wrangler.api.DirectiveParseException;
-import co.cask.wrangler.api.ExecutorContext;
-import co.cask.wrangler.api.RecipeException;
-import co.cask.wrangler.api.RecipeParser;
-import co.cask.wrangler.api.RecipePipeline;
-import co.cask.wrangler.api.Row;
-import co.cask.wrangler.executor.RecipePipelineExecutor;
-import co.cask.wrangler.parser.GrammarBasedParser;
-import co.cask.wrangler.parser.MigrateToV2;
-import co.cask.wrangler.registry.CompositeDirectiveRegistry;
-import co.cask.wrangler.registry.SystemDirectiveRegistry;
+import io.cdap.cdap.api.common.Bytes;
+import io.cdap.wrangler.api.DirectiveLoadException;
+import io.cdap.wrangler.api.DirectiveNotFoundException;
+import io.cdap.wrangler.api.DirectiveParseException;
+import io.cdap.wrangler.api.ExecutorContext;
+import io.cdap.wrangler.api.RecipeException;
+import io.cdap.wrangler.api.RecipeParser;
+import io.cdap.wrangler.api.RecipePipeline;
+import io.cdap.wrangler.api.Row;
+import io.cdap.wrangler.executor.RecipePipelineExecutor;
+import io.cdap.wrangler.parser.GrammarBasedParser;
+import io.cdap.wrangler.parser.MigrateToV2;
+import io.cdap.wrangler.registry.CompositeDirectiveRegistry;
+import io.cdap.wrangler.registry.SystemDirectiveRegistry;
 import org.apache.commons.jexl3.JexlBuilder;
 import org.apache.commons.jexl3.JexlEngine;
 import org.apache.commons.jexl3.JexlException;
@@ -150,7 +150,8 @@ public class RuleExecutor {
     );
 
     String migrate = new MigrateToV2(recipe).migrate();
-    RecipeParser parser = new GrammarBasedParser(context.getNamespace(), migrate, registry);
+    RecipeParser parser = new GrammarBasedParser(context == null ? "system" : context.getNamespace(),
+                                                 migrate, registry);
     parser.initialize(null); // No Directive Context.
     RecipePipeline pipeline = new RecipePipelineExecutor();
     pipeline.initialize(parser, context);

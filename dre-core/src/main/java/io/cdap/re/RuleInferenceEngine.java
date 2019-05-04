@@ -16,9 +16,9 @@
 
 package io.cdap.re;
 
-import co.cask.wrangler.api.ExecutorContext;
-import co.cask.wrangler.api.RecipeException;
-import co.cask.wrangler.api.Row;
+import io.cdap.wrangler.api.ExecutorContext;
+import io.cdap.wrangler.api.RecipeException;
+import io.cdap.wrangler.api.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

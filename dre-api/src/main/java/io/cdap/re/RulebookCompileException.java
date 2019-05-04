@@ -17,7 +17,7 @@
 package io.cdap.re;
 
 
-import co.cask.wrangler.api.parser.SyntaxError;
+import io.cdap.wrangler.api.parser.SyntaxError;
 
 import java.util.Iterator;
 

@@ -28,7 +28,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>co.cask.wrangler</groupId>
+      <groupId>io.cdap.wrangler</groupId>
       <artifactId>wrangler-core</artifactId>
       <version>${wrangler.version}</version>
     </dependency>
@@ -71,13 +71,13 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-api</artifactId>
       <version>${cdap.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-etl-api</artifactId>
       <version>${cdap.version}</version>
       <scope>provided</scope>
@@ -93,13 +93,13 @@
       <version>${commons.validator.version}</version>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-unit-test</artifactId>
       <version>${cdap.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.http</groupId>
+      <groupId>io.cdap.http</groupId>
       <artifactId>netty-http</artifactId>
       <version>${netty-http.version}</version>
       <scope>test</scope>
