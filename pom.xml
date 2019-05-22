@@ -19,7 +19,7 @@
 
   <groupId>io.cdap.re</groupId>
   <artifactId>dre</artifactId>
-  <version>1.2.0</version>
+  <version>1.2.1-SNAPSHOT</version>
   <name>DRE</name>
   <packaging>pom</packaging>
   <description>100% configurable, light weight, extensible Distributed Rules Engine (DRE) with a simple and intuitive DSL and Interface</description>
@@ -64,8 +64,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <cdap.version>6.0.0</cdap.version>
-    <wrangler.version>4.0.0</wrangler.version>
+    <cdap.version>6.0.1-SNAPSHOT</cdap.version>
+    <wrangler.version>4.0.1-SNAPSHOT</wrangler.version>
     <commons-jexl.version>3.0</commons-jexl.version>
     <commons-csv.version>1.4</commons-csv.version>
     <commons-lang.version>3.5</commons-lang.version>
