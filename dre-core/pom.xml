@@ -99,7 +99,7 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.http</groupId>
+      <groupId>io.cdap.http</groupId>
       <artifactId>netty-http</artifactId>
       <version>${netty-http.version}</version>
       <scope>test</scope>
