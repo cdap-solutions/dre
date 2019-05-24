@@ -150,7 +150,8 @@ public class RuleExecutor {
     );
 
     String migrate = new MigrateToV2(recipe).migrate();
-    RecipeParser parser = new GrammarBasedParser(context.getNamespace(), migrate, registry);
+    RecipeParser parser = new GrammarBasedParser(context == null ? "system" : context.getNamespace(),
+                                                 migrate, registry);
     parser.initialize(null); // No Directive Context.
     RecipePipeline pipeline = new RecipePipelineExecutor();
     pipeline.initialize(parser, context);
