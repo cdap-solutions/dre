@@ -17,10 +17,10 @@
 package io.cdap.re;
 
 import io.cdap.wrangler.api.Row;
-import edu.emory.mathcs.backport.java.util.TreeMap;
 import org.apache.commons.jexl3.JexlContext;
 
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Class description here.

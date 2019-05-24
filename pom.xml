@@ -64,8 +64,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <cdap.version>6.1.0-SNAPSHOT</cdap.version>
-    <wrangler.version>4.1.0-SNAPSHOT</wrangler.version>
+    <cdap.version>6.0.0</cdap.version>
+    <wrangler.version>4.0.0</wrangler.version>
     <commons-jexl.version>3.0</commons-jexl.version>
     <commons-csv.version>1.4</commons-csv.version>
     <commons-lang.version>3.5</commons-lang.version>
@@ -83,7 +83,7 @@
     <chlorine.version>1.1.5</chlorine.version>
     <simplemagic.version>1.11</simplemagic.version>
     <httpclient.version>4.5.3</httpclient.version>
-    <netty-http.version>0.16.0</netty-http.version>
+    <netty-http.version>1.2.0</netty-http.version>
     <commons-math3.version>3.6.1</commons-math3.version>
     <avro.version>1.8.1</avro.version>
     <slf4j.version>1.7.5</slf4j.version>
@@ -112,6 +112,13 @@
       <url>https://oss.sonatype.org/content/repositories/snapshots</url>
     </repository>
   </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>sonatype</id>
+      <url>https://oss.sonatype.org/content/groups/public/</url>
+    </pluginRepository>
+  </pluginRepositories>
 
   <dependencies>
     <dependency>
@@ -265,7 +272,6 @@
             <configuration>
               <nexusUrl>https://oss.sonatype.org</nexusUrl>
               <serverId>sonatype.release</serverId>
-              <stagingProfileId>655dc88dc770c3</stagingProfileId>
             </configuration>
           </plugin>
         </plugins>

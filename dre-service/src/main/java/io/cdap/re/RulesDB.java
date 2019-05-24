@@ -16,15 +16,15 @@
 
 package io.cdap.re;
 
+import com.google.common.base.Joiner;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.cdap.cdap.api.common.Bytes;
 import io.cdap.cdap.api.dataset.table.Row;
 import io.cdap.cdap.api.dataset.table.Scanner;
 import io.cdap.cdap.api.dataset.table.Table;
 import io.cdap.cdap.api.messaging.MessagePublisher;
-import com.google.common.base.Joiner;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
