@@ -21,10 +21,12 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.DatasetProperties;
 import io.cdap.cdap.api.dataset.table.Table;
 
+
 /**
- * Class description here.
+ * TODO
  */
 public class YAREApplication extends AbstractApplication {
+
   /**
    * Override this method to declare and configure the application.
    */
@@ -55,7 +57,6 @@ public class YAREApplication extends AbstractApplication {
       Schema.Field.of("updated", Schema.of(Schema.Type.LONG))
     );
 
-
     createDataset("rulebook", Table.class.getName(), DatasetProperties.builder()
       .add(Table.PROPERTY_SCHEMA, rulebookSchema.toString())
       .add(Table.PROPERTY_SCHEMA_ROW_FIELD, "id")
@@ -66,7 +67,6 @@ public class YAREApplication extends AbstractApplication {
       .add(Table.PROPERTY_SCHEMA_ROW_FIELD, "id")
       .build());
 
-    addService("service",
-               new YARERulebookService());
+    addService(new YARERulebookService());
   }
 }
