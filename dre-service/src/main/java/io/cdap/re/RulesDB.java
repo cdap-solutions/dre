@@ -16,33 +16,84 @@
 
 package io.cdap.re;
 
-import com.google.common.base.Joiner;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import io.cdap.cdap.api.common.Bytes;
-import io.cdap.cdap.api.dataset.table.Row;
-import io.cdap.cdap.api.dataset.table.Scanner;
-import io.cdap.cdap.api.dataset.table.Table;
-import io.cdap.cdap.api.messaging.MessagePublisher;
+import com.google.gson.reflect.TypeToken;
+import io.cdap.cdap.api.dataset.lib.CloseableIterator;
+import io.cdap.cdap.spi.data.StructuredRow;
+import io.cdap.cdap.spi.data.StructuredTable;
+import io.cdap.cdap.spi.data.StructuredTableContext;
+import io.cdap.cdap.spi.data.TableNotFoundException;
+import io.cdap.cdap.spi.data.table.StructuredTableId;
+import io.cdap.cdap.spi.data.table.StructuredTableSpecification;
+import io.cdap.cdap.spi.data.table.field.Field;
+import io.cdap.cdap.spi.data.table.field.FieldType;
+import io.cdap.cdap.spi.data.table.field.Fields;
+import io.cdap.cdap.spi.data.table.field.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 
 /**
- * Class description here.
+ * This class {@link RulesDB} manages all the connections defined. It manages the lifecycle of Rules and Rulebooks
+ * including all CRUD operations.
  */
-public final class RulesDB {
-  private static final Logger LOG = LoggerFactory.getLogger(RulesDB.class);
-  private final Table rulebook;
-  private final Table rules;
-  private final MessagePublisher publisher;
+final class RulesDB {
 
+  private static final Logger LOG = LoggerFactory.getLogger(RulesDB.class);
+
+  private static final Type LIST_STRING_TYPE = new TypeToken<List<String>>() {}.getType();
+  private static final Gson GSON = new Gson();
+  private static final String ID_COL = "id";
+  private static final String NAMESPACE_COL = "namespace";
+  private static final String DESCRIPTION_COL = "description";
+  private static final String CONDITION_COL = "condition";
+  private static final String ACTION_COL = "action";
+  private static final String CREATED_COL = "created";
+  private static final String UPDATED_COL = "updated";
+  private static final String USER_COL = "user";
+  private static final String SOURCE_COL = "source";
+  private static final String VERSION_COL = "version";
+  private static final String RULES_COL = "rules";
+  private static final StructuredTableId RULES_TABLE_ID = new StructuredTableId("rules");
+  static final StructuredTableSpecification RULES_TABLE_SPEC = new StructuredTableSpecification.Builder()
+    .withId(RULES_TABLE_ID)
+    .withFields(new FieldType(ID_COL, FieldType.Type.STRING),
+                new FieldType(NAMESPACE_COL, FieldType.Type.STRING),
+                new FieldType(DESCRIPTION_COL, FieldType.Type.STRING),
+                new FieldType(CONDITION_COL, FieldType.Type.STRING),
+                new FieldType(ACTION_COL, FieldType.Type.STRING),
+                new FieldType(CREATED_COL, FieldType.Type.LONG),
+                new FieldType(UPDATED_COL, FieldType.Type.LONG))
+    .withPrimaryKeys(ID_COL)
+    .build();
+  private static final StructuredTableId RULEBOOK_TABLE_ID = new StructuredTableId("rulebook");
+  static final StructuredTableSpecification RULEBOOK_TABLE_SPEC = new StructuredTableSpecification.Builder()
+    .withId(RULEBOOK_TABLE_ID)
+    .withFields(new FieldType(ID_COL, FieldType.Type.STRING),
+                new FieldType(NAMESPACE_COL, FieldType.Type.STRING),
+                new FieldType(DESCRIPTION_COL, FieldType.Type.STRING),
+                new FieldType(VERSION_COL, FieldType.Type.LONG),
+                new FieldType(SOURCE_COL, FieldType.Type.STRING),
+                new FieldType(USER_COL, FieldType.Type.STRING),
+                new FieldType(CREATED_COL, FieldType.Type.LONG),
+                new FieldType(UPDATED_COL, FieldType.Type.LONG),
+                new FieldType(RULES_COL, FieldType.Type.STRING))
+    .withPrimaryKeys(ID_COL)
+    .build();
   private static final String RULE_TEMPLATE = "\n" +
     "  rule %s {\n" +
     "    description '%s'\n" +
@@ -51,7 +102,6 @@ public final class RulesDB {
     "    }\n" +
     "  }" +
     "\n";
-
   private static final String RULEBOOK_TEMPLATE = "rulebook %s {\n" +
     "  version %d\n" +
     "\n" +
@@ -64,415 +114,425 @@ public final class RulesDB {
     "  }\n" +
     "  %s\n" +
     "}";
+  private final StructuredTable rulesTable;
+  private final StructuredTable rulebookTable;
 
-  private static final byte[] ID = Bytes.toBytes("id");
-  private static final byte[] DESCRIPTION = Bytes.toBytes("description");
-  private static final byte[] CONDITION = Bytes.toBytes("condition");
-  private static final byte[] ACTION = Bytes.toBytes("action");
-  private static final byte[] CREATED =  Bytes.toBytes("created");
-  private static final byte[] UPDATED = Bytes.toBytes("updated");
-  private static final byte[] USER = Bytes.toBytes("user");
-  private static final byte[] SOURCE = Bytes.toBytes("source");
-  private static final byte[] VERSION = Bytes.toBytes("version");
-  private static final byte[] RULES = Bytes.toBytes("rules");
-
-  public RulesDB(Table rulebook, Table rules, MessagePublisher publisher) {
-    this.rulebook = rulebook;
-    this.rules = rules;
-    this.publisher = publisher;
+  private RulesDB(StructuredTable rulesTable, StructuredTable rulebookTable) {
+    this.rulesTable = rulesTable;
+    this.rulebookTable = rulebookTable;
   }
 
-  public void createRule(RuleRequest rule) throws RuleAlreadyExistsException {
-    Row row = rules.get(toKey(rule.getId()));
-    if (!row.isEmpty()) {
+  static RulesDB get(StructuredTableContext context) {
+    try {
+      StructuredTable rulesTable = context.getTable(RULES_TABLE_ID);
+      StructuredTable rulebookTable = context.getTable(RULEBOOK_TABLE_ID);
+
+      return new RulesDB(rulesTable, rulebookTable);
+    } catch (TableNotFoundException tnfe) {
+      throw new IllegalStateException(tnfe);
+    }
+  }
+
+  void createRule(RuleRequest rule) throws RuleAlreadyExistsException, IOException {
+    if (rule.getId() == null || rule.getId().trim().isEmpty()) {
+      throw new IllegalArgumentException("Rule requires a mandatory field 'id'.");
+    }
+
+    Collection<Field<?>> keyFields = new ArrayList<>();
+    keyFields.add(Fields.stringField(ID_COL, rule.getId()));
+
+    if (rulesTable.read(keyFields).isPresent()) {
       throw new RuleAlreadyExistsException(
         String.format("Rule '%s' already exists in the rules database. Delete it first or use PUT.", rule.getId())
       );
     }
 
-    if (rule.getId() == null || rule.getId().trim().isEmpty()) {
-      throw new IllegalArgumentException("Rule requires a mandatory field 'id'.");
-    }
+    rule.validate();
 
-    if (rule.getDescription() == null || rule.getDescription().trim().isEmpty()) {
-      throw new IllegalArgumentException(
-        String.format("Rule '%s' requires the mandatory field 'description'", rule.getId())
-      );
-    }
+    long currentTime = getCurrentTime();
 
-    if (rule.getWhen() == null || rule.getWhen().trim().isEmpty()) {
-      throw new IllegalArgumentException(
-        String.format("Rule '%s' requires mandatory field 'when'", rule.getId())
-      );
-    }
+    Collection<Field<?>> ruleFields = new ArrayList<>();
+    ruleFields.add(Fields.stringField(ID_COL, rule.getId()));
+    ruleFields.add(Fields.stringField(DESCRIPTION_COL, rule.getDescription()));
+    ruleFields.add(Fields.stringField(CONDITION_COL, rule.getWhen()));
+    ruleFields.add(Fields.stringField(ACTION_COL, GSON.toJson(rule.getThen())));
+    ruleFields.add(Fields.longField(CREATED_COL, currentTime));
+    ruleFields.add(Fields.longField(UPDATED_COL, currentTime));
 
-    if (rule.getThen() == null || rule.getWhen().trim().isEmpty()) {
-      throw new IllegalArgumentException(
-        String.format("Rule '%s' requires the mandatory field 'then'", rule.getId())
-      );
-    }
-
-    byte[][] columns = new byte[][] {
-      ID, DESCRIPTION, CONDITION, ACTION, CREATED, UPDATED
-    };
-
-    byte[][] values = new byte[][] {
-      toKey(rule.getId()),
-      Bytes.toBytes(rule.getDescription()),
-      Bytes.toBytes(rule.getWhen()),
-      Bytes.toBytes(rule.getThen()),
-      Bytes.toBytes(getCurrentTime()),
-      Bytes.toBytes(getCurrentTime())
-    };
-    rules.put(toKey(rule.getId()), columns, values);
+    rulesTable.upsert(ruleFields);
   }
 
-  public void updateRule(String id, RuleRequest rule) throws RuleNotFoundException {
-    Row row = rules.get(toKey(id));
-    if (row.isEmpty()) {
-      throw new RuleNotFoundException(
-        String.format("Rule '%s' does not exist. Create it first with a POST request.", rule.getId())
-      );
-    }
+  void updateRule(String id, RuleRequest rule) throws RuleNotFoundException, IOException {
+    Collection<Field<?>> keyFields = new ArrayList<>();
+    keyFields.add(Fields.stringField(ID_COL, id));
 
-    if (rule.getDescription() == null || rule.getDescription().trim().isEmpty()) {
-      throw new IllegalArgumentException(
-        String.format("Rule '%s' requires the mandatory field 'description'", rule.getId())
-      );
-    }
-
-    if (rule.getWhen() == null || rule.getWhen().trim().isEmpty()) {
-      throw new IllegalArgumentException(
-        String.format("Rule '%s' requires mandatory field 'when'", rule.getId())
-      );
-    }
-
-    if (rule.getThen() == null || rule.getWhen().trim().isEmpty()) {
-      throw new IllegalArgumentException(
-        String.format("Rule '%s' requires the mandatory field 'then'", rule.getId())
-      );
-    }
-
-    byte[][] columns = new byte[][] {
-      DESCRIPTION, CONDITION, ACTION, UPDATED
-    };
-
-    byte[][] values = new byte[][] {
-      Bytes.toBytes(rule.getDescription()),
-      Bytes.toBytes(rule.getWhen()),
-      Bytes.toBytes(rule.getThen()),
-      Bytes.toBytes(getCurrentTime())
-    };
-
-    rules.put(toKey(id), columns, values);
-  }
-
-  public Map<String, Object> retrieveRule(String id) throws RuleNotFoundException {
-    Map<String, Object> result = new TreeMap<>();
-    Row row = rules.get(toKey(id));
-    if (row.isEmpty()) {
+    if (!rulesTable.read(keyFields).isPresent()) {
       throw new RuleNotFoundException(
         String.format("Rule '%s' does not exist. Create it first with a POST request.", id)
       );
     }
 
-    result.put(Bytes.toString(ID), row.getString(ID));
-    result.put(Bytes.toString(DESCRIPTION), row.getString(DESCRIPTION));
-    result.put(Bytes.toString(CONDITION), row.getString(CONDITION));
-    result.put(Bytes.toString(CREATED), row.getLong(CREATED));
-    result.put(Bytes.toString(UPDATED), row.getLong(UPDATED));
-    String then = row.getString(ACTION);
+    rule.validate();
+
+    Collection<Field<?>> updatedRuleFields = new ArrayList<>();
+    updatedRuleFields.add(Fields.stringField(ID_COL, id));
+    updatedRuleFields.add(Fields.stringField(DESCRIPTION_COL, rule.getDescription()));
+    updatedRuleFields.add(Fields.stringField(CONDITION_COL, rule.getWhen()));
+    updatedRuleFields.add(Fields.stringField(ACTION_COL, GSON.toJson(rule.getThen())));
+    updatedRuleFields.add(Fields.longField(UPDATED_COL, getCurrentTime()));
+
+    rulesTable.upsert(updatedRuleFields);
+  }
+
+  Map<String, Object> retrieveRule(String id) throws RuleNotFoundException, IOException {
+    Collection<Field<?>> keyFields = new ArrayList<>();
+    keyFields.add(Fields.stringField(ID_COL, id));
+
+    Optional<StructuredRow> optionalStructuredRow = rulesTable.read(keyFields);
+
+    if (!optionalStructuredRow.isPresent()) {
+      throw new RuleNotFoundException(
+        String.format("Rule '%s' does not exist. Create it first with a POST request.", id)
+      );
+    }
+
+    StructuredRow row = optionalStructuredRow.get();
+    Map<String, Object> rule = new TreeMap<>();
+
+    rule.put(ID_COL, row.getString(ID_COL));
+    rule.put(DESCRIPTION_COL, row.getString(DESCRIPTION_COL));
+    rule.put(CONDITION_COL, row.getString(CONDITION_COL));
+    rule.put(CREATED_COL, row.getLong(CREATED_COL));
+    rule.put(UPDATED_COL, row.getLong(UPDATED_COL));
+
+    String then = row.getString(ACTION_COL);
     List<String> thens = new ArrayList<>();
-    for (String t : then.split(";")) {
-      thens.add(t);
-    }
-    result.put(Bytes.toString(ACTION), thens);
+    Collections.addAll(thens, Objects.requireNonNull(then).split(";"));
+    rule.put(ACTION_COL, thens);
 
-    return result;
+    return rule;
   }
 
-  public void deleteRule(String id) throws RuleNotFoundException {
-    Row row = rules.get(toKey(id));
-    if (row.isEmpty()) {
-      throw new RuleNotFoundException(
-        String.format("Rule '%s' does not exist. Create it first with a POST request.", id)
-      );
-    }
-    rules.delete(toKey(id));
-  }
+  void deleteRule(String id) throws RuleNotFoundException, IOException {
+    Collection<Field<?>> keyFields = new ArrayList<>();
+    keyFields.add(Fields.stringField(ID_COL, id));
 
-  public String retrieveUsingRuleTemplate(String id) throws RuleNotFoundException {
-    Row row = rules.get(toKey(id));
-    if (row.isEmpty()) {
+    Optional<StructuredRow> optionalStructuredRow = rulesTable.read(keyFields);
+
+    if (!optionalStructuredRow.isPresent()) {
       throw new RuleNotFoundException(
         String.format("Rule '%s' does not exist. Create it first with a POST request.", id)
       );
     }
 
-    return String.format(RULE_TEMPLATE, row.getString(ID), row.getString(DESCRIPTION),
-                                row.getString(CONDITION), row.getString(ACTION));
+    rulesTable.delete(keyFields);
   }
 
-  public void createRulebook(RulebookRequest rb) throws RulebookAlreadyExistsException, RuleNotFoundException {
-    Row row = rulebook.get(toKey(rb.getId()));
-    if (!row.isEmpty()) {
+  String retrieveUsingRuleTemplate(String id) throws RuleNotFoundException, IOException {
+    Collection<Field<?>> keyFields = new ArrayList<>();
+    keyFields.add(Fields.stringField(ID_COL, id));
+
+    Optional<StructuredRow> optionalStructuredRow = rulesTable.read(keyFields);
+
+    if (!optionalStructuredRow.isPresent()) {
+      throw new RuleNotFoundException(
+        String.format("Rule '%s' does not exist. Create it first with a POST request.", id)
+      );
+    }
+
+    StructuredRow row = optionalStructuredRow.get();
+
+    return String.format(RULE_TEMPLATE, row.getString(ID_COL), row.getString(DESCRIPTION_COL),
+                         row.getString(CONDITION_COL), row.getString(ACTION_COL));
+  }
+
+  /**
+   * Creates a rulebook with the rules specified in {@link RulebookRequest}. All rules must have been created.
+   * Otherwise, a {@link RuleNotFoundException} is thrown.
+   *
+   * @param rulebookRequest the request to create a rulebook
+   * @throws RulebookAlreadyExistsException if the rulebook already exists
+   * @throws RuleNotFoundException if one of the rules in the request does not exist
+   * @throws IOException if there is an IO error
+   */
+  void createRulebook(RulebookRequest rulebookRequest)
+    throws RulebookAlreadyExistsException, RuleNotFoundException, IOException {
+    Collection<Field<?>> rulebookKeyFields = new ArrayList<>();
+    rulebookKeyFields.add(Fields.stringField(ID_COL, rulebookRequest.getId()));
+
+    Optional<StructuredRow> optionalRulebookStructuredRow = rulebookTable.read(rulebookKeyFields);
+
+    if (optionalRulebookStructuredRow.isPresent()) {
       throw new RulebookAlreadyExistsException(
-        String.format("Rulebook '%s' already exists. Either update it or delete it and create it.", rb.getId())
+        String.format("Rulebook '%s' already exists. Either update it or delete it and create it.",
+                      rulebookRequest.getId())
       );
     }
 
-    for (String rule : rb.getRules()) {
-      if(rules.get(toKey(rule)).isEmpty()) {
+    for (String rule : rulebookRequest.getRules()) {
+      Collection<Field<?>> ruleKeyFields = new ArrayList<>();
+      ruleKeyFields.add(Fields.stringField(ID_COL, rule));
+
+      Optional<StructuredRow> optionalRuleStructuredRow = rulesTable.read(ruleKeyFields);
+
+      if (!optionalRuleStructuredRow.isPresent()) {
         throw new RuleNotFoundException(
           String.format("Rulebook '%s' includes a rule '%s' that does not exist. Please add rule first",
-                        rb.getId(), rule)
+                        rulebookRequest.getId(), rule)
         );
       }
     }
 
-    byte[][] columns = new byte[][] {
-      ID, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
-    };
+    long currentTime = getCurrentTime();
 
-    byte[][] values = new byte[][] {
-      Bytes.toBytes(rb.getId()),
-      Bytes.toBytes(rb.getDescription()),
-      Bytes.toBytes(getCurrentTime()),
-      Bytes.toBytes(getCurrentTime()),
-      Bytes.toBytes(rb.getUser()),
-      Bytes.toBytes(rb.getSource()),
-      Bytes.toBytes(1L),
-      Bytes.toBytes(rb.getRulesString())
-    };
+    Collection<Field<?>> rulebookFields = new ArrayList<>();
+    rulebookFields.add(Fields.stringField(ID_COL, rulebookRequest.getId()));
+    rulebookFields.add(Fields.stringField(DESCRIPTION_COL, rulebookRequest.getDescription()));
+    rulebookFields.add(Fields.longField(CREATED_COL, currentTime));
+    rulebookFields.add(Fields.longField(UPDATED_COL, currentTime));
+    rulebookFields.add(Fields.stringField(USER_COL, rulebookRequest.getUser()));
+    rulebookFields.add(Fields.longField(VERSION_COL, 1L));
+    rulebookFields.add(Fields.stringField(RULES_COL, GSON.toJson(rulebookRequest.getRules())));
 
-    rulebook.put(toKey(rb.getId()), columns, values);
+    rulebookTable.upsert(rulebookFields);
   }
 
-  public void createRulebook(Rulebook rulebook) throws RulebookAlreadyExistsException {
+  /**
+   * Creates a rulebook with the rules specified in {@link RulebookRequest}. The method attempts to create the rules
+   * specified in {@link Rulebook} object. However, a {@link RuleNotFoundException} might be thrown when creating the
+   * rulebook if one of the rules is not found. This case may occur if there was an exception thrown when attempting to
+   * create a rule.
+   *
+   * @param rulebook the rulebook object to be created
+   * @throws RulebookAlreadyExistsException if the rulebook already exists
+   * @throws IOException if there is an IO error
+   * @throws RuleNotFoundException if one of the rules in the rulebook does not exist. This exception maybe thrown if
+   * there was an exception thrown during the creation of the rule
+   */
+  void createRulebook(Rulebook rulebook) throws RulebookAlreadyExistsException, IOException, RuleNotFoundException {
     List<String> ruleIds = new ArrayList<>();
+
     for (Rule rule : rulebook.getRules()) {
       RuleRequest request = new RuleRequest(rule.getName(), rule.getDescription(), rule.getWhen(), rule.getThen());
       ruleIds.add(rule.getName());
+
       try {
         createRule(request);
       } catch (RuleAlreadyExistsException e) {
         // Nothing to be done here.
       }
     }
+
     RulebookRequest rbreq = new RulebookRequest(rulebook.getName(), rulebook.getMeta().getDescription(),
                                                 rulebook.getMeta().getSource(), rulebook.getMeta().getUser(),
                                                 ruleIds);
-    try {
-      createRulebook(rbreq);
-    } catch (RuleNotFoundException e) {
-      // no-op should not happen.
-    }
+    createRulebook(rbreq);
   }
 
-  public void updateRulebook(String id, RulebookRequest rb) throws RulebookAlreadyExistsException, RuleNotFoundException {
-    Row row = rulebook.get(toKey(id));
-    if (row.isEmpty()) {
+  void updateRulebook(String id, RulebookRequest rulebookRequest) throws RulebookAlreadyExistsException, IOException {
+    Collection<Field<?>> keyFields = new ArrayList<>();
+    keyFields.add(Fields.stringField(ID_COL, id));
+
+    Optional<StructuredRow> optionalStructuredRow = rulebookTable.read(keyFields);
+
+    if (!optionalStructuredRow.isPresent()) {
       throw new RulebookAlreadyExistsException(
         String.format("Rulebook '%s' does not exist. Create it first with a POST request.", id)
       );
     }
 
-    byte[][] columns = new byte[][] {
-      DESCRIPTION, USER, SOURCE, VERSION, RULES
-    };
+    Collection<Field<?>> updatedRulebookFields = new ArrayList<>();
+    updatedRulebookFields.add(Fields.stringField(ID_COL, id));
+    updatedRulebookFields.add(Fields.stringField(DESCRIPTION_COL, rulebookRequest.getDescription()));
+    updatedRulebookFields.add(Fields.stringField(USER_COL, rulebookRequest.getUser()));
+    updatedRulebookFields.add(Fields.stringField(SOURCE_COL, rulebookRequest.getSource()));
+    updatedRulebookFields.add(Fields.longField(VERSION_COL, optionalStructuredRow.get().getLong(VERSION_COL)));
+    updatedRulebookFields.add(Fields.stringField(RULES_COL, GSON.toJson(rulebookRequest.getRules())));
 
-    LOG.info("Ordering of rules {}.", rb.getRulesString());
-
-    long version = row.getLong(VERSION);
-    version = version + 1;
-    byte[][] values = new byte[][] {
-      Bytes.toBytes(rb.getDescription()),
-      Bytes.toBytes(rb.getUser()),
-      Bytes.toBytes(rb.getSource()),
-      Bytes.toBytes(version),
-      Bytes.toBytes(rb.getRulesString())
-    };
-
-    rulebook.put(toKey(rb.getId()), columns, values);
+    rulebookTable.upsert(updatedRulebookFields);
   }
 
-  public void addRuleToRulebook(String rulebookId, String ruleId) throws RuleAlreadyExistsException,
-    RulebookNotFoundException, RuleNotFoundException {
-    Row row = rulebook.get(toKey(rulebookId));
-    if (row.isEmpty()) {
+  void addRuleToRulebook(String rulebookId, String ruleId)
+    throws RuleAlreadyExistsException, RulebookNotFoundException, RuleNotFoundException, IOException {
+    Collection<Field<?>> rulebookKeyFields = new ArrayList<>();
+    rulebookKeyFields.add(Fields.stringField(ID_COL, rulebookId));
+
+    Optional<StructuredRow> optionalRulebookStructuredRow = rulebookTable.read(rulebookKeyFields);
+
+    if (!optionalRulebookStructuredRow.isPresent()) {
       throw new RulebookNotFoundException(
         String.format("Rulebook '%s' not found.", rulebookId)
       );
     }
 
-    if (rules.get(toKey(ruleId)).isEmpty()) {
+    Collection<Field<?>> ruleKeyFields = new ArrayList<>();
+    ruleKeyFields.add(Fields.stringField(ID_COL, ruleId));
+
+    Optional<StructuredRow> optionalRuleStructuredRow = rulesTable.read(ruleKeyFields);
+
+    if (!optionalRuleStructuredRow.isPresent()) {
       throw new RuleNotFoundException(
         String.format("Attempt to add rule '%s' to rulebook '%s' failed as rule doesn't exist in rules database.",
                       rulebookId, ruleId)
       );
     }
 
-    long version = row.getLong(VERSION);
-    List<String> rules = convertRulesToSet(row.getString(RULES));
+    StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
+    List<String> rules = GSON.fromJson(rulebookRow.getString(RULES_COL), LIST_STRING_TYPE);
+
     if (rules.contains(ruleId)) {
       throw new RuleAlreadyExistsException(
         String.format("Rule '%s' already exists in the rulebook '%s'.", ruleId, rulebookId)
       );
     }
+
     rules.add(ruleId);
 
-    byte[][] columns = new byte[][] {
-      UPDATED, VERSION, RULES
-    };
+    Collection<Field<?>> rulebookFields = new ArrayList<>();
+    rulebookFields.add(Fields.stringField(ID_COL, rulebookId));
+    rulebookFields.add(Fields.longField(UPDATED_COL, getCurrentTime()));
+    rulebookFields.add(Fields.longField(VERSION_COL, rulebookRow.getLong(VERSION_COL)));
+    rulebookFields.add(Fields.stringField(RULES_COL, GSON.toJson(rules)));
 
-    version = version + 1;
-    byte[][] values = new byte[][] {
-      Bytes.toBytes(getCurrentTime()),
-      Bytes.toBytes(version),
-      Bytes.toBytes(Joiner.on(",").join(rules))
-    };
-    rulebook.put(toKey(rulebookId), columns, values);
+    rulebookTable.upsert(rulebookFields);
   }
 
-  public void removeRuleFromRulebook(String rulebookId, String ruleId) throws RuleAlreadyExistsException,
-    RulebookNotFoundException, RuleNotFoundException {
-    Row row = rulebook.get(toKey(rulebookId));
-    if (row.isEmpty()) {
+  void removeRuleFromRulebook(String rulebookId, String ruleId)
+    throws RulebookNotFoundException, RuleNotFoundException, IOException {
+    Collection<Field<?>> rulebookKeyFields = new ArrayList<>();
+    rulebookKeyFields.add(Fields.stringField(ID_COL, rulebookId));
+
+    Optional<StructuredRow> optionalRulebookStructuredRow = rulebookTable.read(rulebookKeyFields);
+
+    if (!optionalRulebookStructuredRow.isPresent()) {
       throw new RulebookNotFoundException(
         String.format("Rulebook '%s' not found.", rulebookId)
       );
     }
 
-    if (rules.get(toKey(ruleId)).isEmpty()) {
+    Collection<Field<?>> ruleKeyFields = new ArrayList<>();
+    ruleKeyFields.add(Fields.stringField(ID_COL, ruleId));
+
+    Optional<StructuredRow> optionalRuleStructuredRow = rulesTable.read(ruleKeyFields);
+
+    if (!optionalRuleStructuredRow.isPresent()) {
       throw new RuleNotFoundException(
         String.format("Attempt to remove rule '%s' from rulebook '%s' failed as rule doesn't exist in rules database.",
                       rulebookId, ruleId)
       );
     }
 
-    long version = row.getLong(VERSION);
-    List<String> rules = convertRulesToSet(row.getString(RULES));
+    StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
+    List<String> rules = GSON.fromJson(rulebookRow.getString(RULES_COL), LIST_STRING_TYPE);
     rules.remove(ruleId);
 
-    byte[][] columns = new byte[][] {
-      UPDATED, VERSION, RULES
-    };
+    Collection<Field<?>> rulebookFields = new ArrayList<>();
+    rulebookFields.add(Fields.stringField(ID_COL, rulebookId));
+    rulebookFields.add(Fields.longField(UPDATED_COL, getCurrentTime()));
+    rulebookFields.add(Fields.longField(VERSION_COL, rulebookRow.getLong(VERSION_COL) + 1));
+    rulebookFields.add(Fields.stringField(RULES_COL, GSON.toJson(rules)));
 
-    version = version + 1;
-    byte[][] values = new byte[][] {
-      Bytes.toBytes(getCurrentTime()),
-      Bytes.toBytes(version),
-      Bytes.toBytes(Joiner.on(",").join(rules))
-    };
-    rulebook.put(toKey(rulebookId), columns, values);
+    rulebookTable.upsert(rulebookFields);
   }
 
-  public void cloneRulebook(String rulebookId) throws RuleAlreadyExistsException,
-    RulebookNotFoundException, RuleNotFoundException {
-    Row row = rulebook.get(toKey(rulebookId));
-    if (row.isEmpty()) {
-      throw new RulebookNotFoundException(
-        String.format("Rulebook '%s' not found.", rulebookId)
-      );
+  void deleteRulebook(String rulebookId) throws RulebookNotFoundException, IOException {
+    Collection<Field<?>> keyFields = new ArrayList<>();
+    keyFields.add(Fields.stringField(ID_COL, rulebookId));
+
+    Optional<StructuredRow> optionalStructuredRow = rulebookTable.read(keyFields);
+
+    if (!optionalStructuredRow.isPresent()) {
+      throw new RulebookNotFoundException(String.format("Rulebook '%s' not found.", rulebookId));
     }
 
-    int count = 1;
-    String clonedRulebookId = String.format("%s_%d", rulebookId, count);
-    while(!rulebook.get(toKey(clonedRulebookId)).isEmpty()) {
-      count++;
-      clonedRulebookId = String.format("%s_%d", rulebookId, count);
-    }
-
-    byte[][] columns = new byte[][] {
-      ID, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
-    };
-
-    byte[][] values = new byte[][] {
-      Bytes.toBytes(clonedRulebookId),
-      row.get(DESCRIPTION),
-      Bytes.toBytes(getCurrentTime()),
-      Bytes.toBytes(getCurrentTime()),
-      row.get(USER),
-      row.get(SOURCE),
-      Bytes.toBytes(1L),
-      row.get(RULES)
-    };
-
-    rulebook.put(toKey(clonedRulebookId), columns, values);
+    rulebookTable.delete(keyFields);
   }
 
-  public void deleteRulebook(String rulebookId) throws RulebookNotFoundException {
-    Row row = rulebook.get(toKey(rulebookId));
-    if (row.isEmpty()) {
-      throw new RulebookNotFoundException(
-        String.format("Rulebook '%s' not found.", rulebookId)
-      );
-    }
-    rulebook.delete(toKey(rulebookId));
-  }
+  JsonArray getRulebookRules(String rulebookId) throws RulebookNotFoundException, IOException {
+    Collection<Field<?>> rulebookKeyFields = new ArrayList<>();
+    rulebookKeyFields.add(Fields.stringField(ID_COL, rulebookId));
 
-  public JsonArray getRulebookRules(String rulebookId) throws RulebookNotFoundException, RuleNotFoundException {
-    Row row = rulebook.get(toKey(rulebookId));
-    if (row.isEmpty()) {
-      throw new RulebookNotFoundException(
-        String.format("Rulebook '%s' not found.", rulebookId)
-      );
+    Optional<StructuredRow> optionalRulebookStructuredRow = rulebookTable.read(rulebookKeyFields);
+
+    if (!optionalRulebookStructuredRow.isPresent()) {
+      throw new RulebookNotFoundException(String.format("Rulebook '%s' not found.", rulebookId));
     }
 
-    List<String> ruleSet = convertRulesToSet(row.getString(RULES));
+    StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
+    List<String> rules = GSON.fromJson(rulebookRow.getString(RULES_COL), LIST_STRING_TYPE);
     JsonArray array = new JsonArray();
-    for (String rule : ruleSet) {
-      JsonObject object = new JsonObject();
-      Row ruleRow = rules.get(toKey(rule));
-      if (ruleRow.isEmpty()) {
+
+    for (String rule : rules) {
+      Collection<Field<?>> ruleKeyFields = new ArrayList<>();
+      ruleKeyFields.add(Fields.stringField(ID_COL, rule));
+
+      Optional<StructuredRow> optionalRuleStructuredRow = rulesTable.read(ruleKeyFields);
+
+      if (!optionalRuleStructuredRow.isPresent()) {
         continue;
       }
-      object.addProperty(Bytes.toString(ID), ruleRow.getString(ID));
-      object.addProperty(Bytes.toString(DESCRIPTION), ruleRow.getString(DESCRIPTION));
-      object.addProperty(Bytes.toString(CONDITION), ruleRow.getString(CONDITION));
-      object.addProperty(Bytes.toString(CREATED), ruleRow.getLong(CREATED));
-      object.addProperty(Bytes.toString(UPDATED), ruleRow.getLong(UPDATED));
+
+      StructuredRow ruleRow = optionalRuleStructuredRow.get();
+      JsonObject object = new JsonObject();
+      object.addProperty(ID_COL, ruleRow.getString(ID_COL));
+      object.addProperty(DESCRIPTION_COL, ruleRow.getString(DESCRIPTION_COL));
+      object.addProperty(CONDITION_COL, ruleRow.getString(CONDITION_COL));
+      object.addProperty(CREATED_COL, ruleRow.getLong(CREATED_COL));
+      object.addProperty(UPDATED_COL, ruleRow.getLong(UPDATED_COL));
 
       JsonArray actions = new JsonArray();
-      String then = ruleRow.getString(ACTION);
+      String then = ruleRow.getString(ACTION_COL);
+
       if (then != null) {
         for (String t : then.split(";")) {
           actions.add(new JsonPrimitive(t));
         }
-        object.add(Bytes.toString(ACTION), actions);
+
+        object.add(ACTION_COL, actions);
       }
+
       array.add(object);
     }
+
     return array;
   }
 
-  public String generateRulebook(String rulebookId) throws RulebookNotFoundException, RuleNotFoundException {
-    Row row = rulebook.get(toKey(rulebookId));
-    if (row.isEmpty()) {
-      throw new RulebookNotFoundException(
-        String.format("Rulebook '%s' not found.", rulebookId)
-      );
+  String generateRulebook(String rulebookId) throws RulebookNotFoundException, RuleNotFoundException, IOException {
+    Collection<Field<?>> rulebookKeyFields = new ArrayList<>();
+    rulebookKeyFields.add(Fields.stringField(ID_COL, rulebookId));
+
+    Optional<StructuredRow> optionalRulebookStructuredRow = rulebookTable.read(rulebookKeyFields);
+
+    if (!optionalRulebookStructuredRow.isPresent()) {
+      throw new RulebookNotFoundException(String.format("Rulebook '%s' not found.", rulebookId));
     }
 
-    List<String> ruleSet = convertRulesToSet(row.getString(RULES));
+    StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
+    List<String> rules = GSON.fromJson(rulebookRow.getString(RULES_COL), LIST_STRING_TYPE);
     List<String> ruleOutput = new ArrayList<>();
-    for (String rule : ruleSet) {
-      Row ruleRow = rules.get(toKey(rule));
-      if (ruleRow.isEmpty()) {
+
+    for (String rule : rules) {
+      Collection<Field<?>> ruleKeyFields = new ArrayList<>();
+      ruleKeyFields.add(Fields.stringField(ID_COL, rule));
+
+      Optional<StructuredRow> optionalRuleStructuredRow = rulesTable.read(ruleKeyFields);
+
+      if (!optionalRuleStructuredRow.isPresent()) {
         throw new RuleNotFoundException(
           String.format("Rulebook '%s' contains rule '%s', but rule '%s' is not present in rules database.",
                         rulebookId, rule, rule)
         );
       }
-      ruleOutput.add(String.format(RULE_TEMPLATE, ruleRow.getString(ID), ruleRow.getString(DESCRIPTION),
-                                   ruleRow.getString(CONDITION), ruleRow.getString(ACTION)));
+
+      StructuredRow ruleRow = optionalRuleStructuredRow.get();
+      ruleOutput.add(String.format(RULE_TEMPLATE, ruleRow.getString(ID_COL), ruleRow.getString(DESCRIPTION_COL),
+                                   ruleRow.getString(CONDITION_COL), ruleRow.getString(ACTION_COL)));
     }
 
-    String format = String.format(RULEBOOK_TEMPLATE, row.getString(ID), row.getLong(VERSION),
-                                  row.getString(DESCRIPTION), row.getLong(CREATED),
-                                  row.getLong(UPDATED), row.getString(SOURCE),
-                                  row.getString(USER), Joiner.on("").join(ruleOutput));
-    return format;
+    return String.format(RULEBOOK_TEMPLATE, rulebookRow.getString(ID_COL), rulebookRow.getLong(VERSION_COL),
+                         rulebookRow.getString(DESCRIPTION_COL), rulebookRow.getLong(CREATED_COL),
+                         rulebookRow.getLong(UPDATED_COL), rulebookRow.getString(SOURCE_COL),
+                         rulebookRow.getString(USER_COL), ruleOutput);
   }
 
   /**
@@ -480,63 +540,53 @@ public final class RulesDB {
    *
    * @return List of rules in the system.
    */
-  public List<Map<String, Object>> rules() {
-    List<Map<String, Object>> result = new ArrayList<>();
-    try (Scanner scan = rules.scan(null, null)) {
-      Row next;
-      while ((next = scan.next()) != null) {
+  List<Map<String, Object>> rules() throws IOException {
+    List<Map<String, Object>> rules = new ArrayList<>();
+    List<Field<?>> key = new ArrayList<>(1);
+    Range range = Range.singleton(key);
+
+    try (CloseableIterator<StructuredRow> rowIter = rulesTable.scan(range, Integer.MAX_VALUE)) {
+      while (rowIter.hasNext()) {
+        StructuredRow row = rowIter.next();
         Map<String, Object> object = new HashMap<>();
-        object.put(Bytes.toString(ID), next.getString(ID));
-        object.put(Bytes.toString(DESCRIPTION), next.getString(DESCRIPTION));
-        object.put(Bytes.toString(CONDITION), next.getString(CONDITION));
-        object.put(Bytes.toString(ACTION), next.getString(ACTION));
-        object.put(Bytes.toString(CREATED), next.getLong(CREATED));
-        object.put(Bytes.toString(UPDATED), next.getLong(UPDATED));
-        result.add(object);
+        object.put(ID_COL, row.getString(ID_COL));
+        object.put(DESCRIPTION_COL, row.getString(DESCRIPTION_COL));
+        object.put(CONDITION_COL, row.getString(CONDITION_COL));
+        object.put(ACTION_COL, row.getString(ACTION_COL));
+        object.put(CREATED_COL, row.getLong(CREATED_COL));
+        object.put(UPDATED_COL, row.getLong(UPDATED_COL));
+        rules.add(object);
       }
     }
-    return result;
+
+    return rules;
   }
 
-  public List<Map<String, Object>> rulebooks() {
-    List<Map<String, Object>> result = new ArrayList<>();
-    try (Scanner scan = rulebook.scan(null, null)) {
-      //ID, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
-      Row next;
-      while ((next = scan.next()) != null) {
+  List<Map<String, Object>> rulebooks() throws IOException {
+    List<Map<String, Object>> rulebooks = new ArrayList<>();
+    List<Field<?>> keyFields = new ArrayList<>(1);
+    Range range = Range.singleton(keyFields);
+
+    try (CloseableIterator<StructuredRow> rowIter = rulebookTable.scan(range, Integer.MAX_VALUE)) {
+      while (rowIter.hasNext()) {
+        StructuredRow row = rowIter.next();
         Map<String, Object> object = new HashMap<>();
-        object.put(Bytes.toString(ID), next.getString(ID));
-        object.put(Bytes.toString(DESCRIPTION), next.getString(DESCRIPTION));
-        object.put(Bytes.toString(USER), next.getString(USER));
-        object.put(Bytes.toString(SOURCE), next.getString(SOURCE));
-        object.put(Bytes.toString(VERSION), next.getLong(VERSION));
-        object.put(Bytes.toString(RULES), next.getString(RULES));
-        object.put(Bytes.toString(CREATED), next.getLong(CREATED));
-        object.put(Bytes.toString(UPDATED), next.getLong(UPDATED));
-        result.add(object);
+        object.put(ID_COL, row.getString(ID_COL));
+        object.put(DESCRIPTION_COL, row.getString(DESCRIPTION_COL));
+        object.put(USER_COL, row.getString(USER_COL));
+        object.put(SOURCE_COL, row.getString(SOURCE_COL));
+        object.put(VERSION_COL, row.getLong(VERSION_COL));
+        object.put(RULES_COL, row.getString(RULES_COL));
+        object.put(CREATED_COL, row.getLong(CREATED_COL));
+        object.put(UPDATED_COL, row.getLong(UPDATED_COL));
+        rulebooks.add(object);
       }
     }
-    return result;
+    return rulebooks;
   }
 
   private long getCurrentTime() {
     return (System.currentTimeMillis() / 1000);
-  }
-
-  private List<String> convertRulesToSet(String rules) {
-    List<String> ruleSet = new ArrayList<>();
-    if (rules == null || rules.trim().isEmpty()) {
-      return ruleSet;
-    }
-    String[] rulesArray = rules.split(",");
-    for (String rule : rulesArray) {
-      ruleSet.add(rule);
-    }
-    return ruleSet;
-  }
-
-  private byte[] toKey(String value) {
-    return Bytes.toBytes(value);
   }
 
 }

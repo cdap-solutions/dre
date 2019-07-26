@@ -19,13 +19,16 @@ package io.cdap.re;
 import io.cdap.cdap.api.service.AbstractSystemService;
 
 /**
- * TODO
+ * YARE service
  */
 public class YARERulebookService extends AbstractSystemService {
 
   @Override
   protected void configure() {
     setName("service");
+
+    createTable(RulesDB.RULES_TABLE_SPEC);
+    createTable(RulesDB.RULEBOOK_TABLE_SPEC);
 
     addHandler(new YARERulebookHandler());
   }

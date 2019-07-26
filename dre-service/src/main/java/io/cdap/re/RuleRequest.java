@@ -16,44 +16,63 @@
 
 package io.cdap.re;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
  * Class description here.
  */
-public final class RuleRequest {
+final class RuleRequest {
+
   private final String id;
   private final String description;
   private final String when;
   private final List<String> then;
 
-  public RuleRequest(String id, String description, String when, List<String> then) {
+  RuleRequest(String id, String description, String when, List<String> then) {
     this.id = id;
     this.description = description;
     this.when = when;
     this.then = then;
   }
 
-  public String getId() {
+  /**
+   * Validates the state of this {@link RuleRequest} excluding the id.
+   */
+  void validate() {
+    if (description == null || description.trim().isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("Rule '%s' requires the mandatory field 'description'", id)
+      );
+    }
+
+    if (when == null || when.trim().isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("Rule '%s' requires mandatory field 'when'", id)
+      );
+    }
+
+    if (then == null || then.isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("Rule '%s' requires the mandatory field 'then'", id)
+      );
+    }
+  }
+
+  String getId() {
     return id;
   }
 
-  public String getDescription() {
+  String getDescription() {
     return description;
   }
 
-  public String getWhen() {
+  String getWhen() {
     return when;
   }
 
-  public String getThen() {
-    StringBuilder sb = new StringBuilder();
-    for (String t : then) {
-      sb.append(t);
-      if(!t.endsWith(";")) {
-        sb.append(";");
-      }
-    }
-    return sb.toString();
+  List<String> getThen() {
+    return then == null ? Collections.emptyList() : then;
   }
+
 }
