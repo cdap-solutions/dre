@@ -36,6 +36,7 @@ public class YAREApplication extends AbstractApplication {
     Schema rulebookSchema = Schema.recordOf(
       "rulebook",
       Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+      Schema.Field.of("namespace", Schema.of(Schema.Type.STRING)),
       Schema.Field.of("description", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
       Schema.Field.of("version", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("source", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
@@ -48,6 +49,7 @@ public class YAREApplication extends AbstractApplication {
     Schema ruleSchema = Schema.recordOf(
       "rules",
       Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+      Schema.Field.of("namespace", Schema.of(Schema.Type.STRING)),
       Schema.Field.of("description", Schema.of(Schema.Type.STRING)),
       Schema.Field.of("condition", Schema.of(Schema.Type.STRING)),
       Schema.Field.of("action", Schema.nullableOf(Schema.of(Schema.Type.STRING))),

@@ -45,6 +45,7 @@ public final class RulesDB {
 
   private static final String RULE_TEMPLATE = "\n" +
     "  rule %s {\n" +
+    "    namespace '%s'\n" +
     "    description '%s'\n" +
     "    when(%s) then {\n" +
     "      %s\n" +
@@ -56,6 +57,7 @@ public final class RulesDB {
     "  version %d\n" +
     "\n" +
     "  meta {\n" +
+    "    namespace '%s'\n" +
     "    description '%s'\n" +
     "    created-date %d\n" +
     "    updated-date %d\n" +
@@ -66,6 +68,7 @@ public final class RulesDB {
     "}";
 
   private static final byte[] ID = Bytes.toBytes("id");
+  private static final byte[] NAMESPACE = Bytes.toBytes("namespace");
   private static final byte[] DESCRIPTION = Bytes.toBytes("description");
   private static final byte[] CONDITION = Bytes.toBytes("condition");
   private static final byte[] ACTION = Bytes.toBytes("action");
@@ -113,7 +116,7 @@ public final class RulesDB {
     }
 
     byte[][] columns = new byte[][] {
-      ID, DESCRIPTION, CONDITION, ACTION, CREATED, UPDATED
+      ID, NAMESPACE, DESCRIPTION, CONDITION, ACTION, CREATED, UPDATED
     };
 
     byte[][] values = new byte[][] {
@@ -154,7 +157,7 @@ public final class RulesDB {
     }
 
     byte[][] columns = new byte[][] {
-      DESCRIPTION, CONDITION, ACTION, UPDATED
+      NAMESPACE, DESCRIPTION, CONDITION, ACTION, UPDATED
     };
 
     byte[][] values = new byte[][] {
@@ -177,6 +180,7 @@ public final class RulesDB {
     }
 
     result.put(Bytes.toString(ID), row.getString(ID));
+    result.put(Bytes.toString(NAMESPACE), row.getString(NAMESPACE));
     result.put(Bytes.toString(DESCRIPTION), row.getString(DESCRIPTION));
     result.put(Bytes.toString(CONDITION), row.getString(CONDITION));
     result.put(Bytes.toString(CREATED), row.getLong(CREATED));
@@ -209,7 +213,7 @@ public final class RulesDB {
       );
     }
 
-    return String.format(RULE_TEMPLATE, row.getString(ID), row.getString(DESCRIPTION),
+    return String.format(RULE_TEMPLATE, row.getString(ID), row.getString(NAMESPACE), row.getString(DESCRIPTION),
                                 row.getString(CONDITION), row.getString(ACTION));
   }
 
@@ -231,7 +235,7 @@ public final class RulesDB {
     }
 
     byte[][] columns = new byte[][] {
-      ID, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
+      ID, NAMESPACE, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
     };
 
     byte[][] values = new byte[][] {
@@ -278,7 +282,7 @@ public final class RulesDB {
     }
 
     byte[][] columns = new byte[][] {
-      DESCRIPTION, USER, SOURCE, VERSION, RULES
+      NAMESPACE, DESCRIPTION, USER, SOURCE, VERSION, RULES
     };
 
     LOG.info("Ordering of rules {}.", rb.getRulesString());
@@ -384,7 +388,7 @@ public final class RulesDB {
     }
 
     byte[][] columns = new byte[][] {
-      ID, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
+      ID, NAMESPACE, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
     };
 
     byte[][] values = new byte[][] {
@@ -428,6 +432,7 @@ public final class RulesDB {
         continue;
       }
       object.addProperty(Bytes.toString(ID), ruleRow.getString(ID));
+      object.addProperty(Bytes.toString(NAMESPACE), ruleRow.getString(NAMESPACE));
       object.addProperty(Bytes.toString(DESCRIPTION), ruleRow.getString(DESCRIPTION));
       object.addProperty(Bytes.toString(CONDITION), ruleRow.getString(CONDITION));
       object.addProperty(Bytes.toString(CREATED), ruleRow.getLong(CREATED));
@@ -464,11 +469,12 @@ public final class RulesDB {
                         rulebookId, rule, rule)
         );
       }
-      ruleOutput.add(String.format(RULE_TEMPLATE, ruleRow.getString(ID), ruleRow.getString(DESCRIPTION),
-                                   ruleRow.getString(CONDITION), ruleRow.getString(ACTION)));
+      ruleOutput.add(String.format(RULE_TEMPLATE, ruleRow.getString(ID), ruleRow.getString(NAMESPACE),
+                                   ruleRow.getString(DESCRIPTION), ruleRow.getString(CONDITION),
+                                   ruleRow.getString(ACTION)));
     }
 
-    String format = String.format(RULEBOOK_TEMPLATE, row.getString(ID), row.getLong(VERSION),
+    String format = String.format(RULEBOOK_TEMPLATE, row.getString(ID), row.getLong(VERSION), row.getString(NAMESPACE),
                                   row.getString(DESCRIPTION), row.getLong(CREATED),
                                   row.getLong(UPDATED), row.getString(SOURCE),
                                   row.getString(USER), Joiner.on("").join(ruleOutput));
@@ -487,6 +493,7 @@ public final class RulesDB {
       while ((next = scan.next()) != null) {
         Map<String, Object> object = new HashMap<>();
         object.put(Bytes.toString(ID), next.getString(ID));
+        object.put(Bytes.toString(NAMESPACE), next.getString(NAMESPACE));
         object.put(Bytes.toString(DESCRIPTION), next.getString(DESCRIPTION));
         object.put(Bytes.toString(CONDITION), next.getString(CONDITION));
         object.put(Bytes.toString(ACTION), next.getString(ACTION));
@@ -501,11 +508,12 @@ public final class RulesDB {
   public List<Map<String, Object>> rulebooks() {
     List<Map<String, Object>> result = new ArrayList<>();
     try (Scanner scan = rulebook.scan(null, null)) {
-      //ID, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
+      //ID, NAMESPACE, DESCRIPTION, CREATED, UPDATED, USER, SOURCE, VERSION, RULES
       Row next;
       while ((next = scan.next()) != null) {
         Map<String, Object> object = new HashMap<>();
         object.put(Bytes.toString(ID), next.getString(ID));
+        object.put(Bytes.toString(NAMESPACE), next.getString(NAMESPACE));
         object.put(Bytes.toString(DESCRIPTION), next.getString(DESCRIPTION));
         object.put(Bytes.toString(USER), next.getString(USER));
         object.put(Bytes.toString(SOURCE), next.getString(SOURCE));
