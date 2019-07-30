@@ -17,13 +17,10 @@
 package io.cdap.re;
 
 import io.cdap.cdap.api.app.AbstractApplication;
-import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.api.dataset.DatasetProperties;
-import io.cdap.cdap.api.dataset.table.Table;
 
 
 /**
- * TODO
+ * YARE application
  */
 public class YAREApplication extends AbstractApplication {
 
@@ -34,39 +31,6 @@ public class YAREApplication extends AbstractApplication {
   public void configure() {
     setName("yare");
     setDescription("Yet Another Rules Engine - Just for Big Data.");
-
-    Schema rulebookSchema = Schema.recordOf(
-      "rulebook",
-      Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-      Schema.Field.of("description", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
-      Schema.Field.of("version", Schema.of(Schema.Type.LONG)),
-      Schema.Field.of("source", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
-      Schema.Field.of("user", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
-      Schema.Field.of("created", Schema.of(Schema.Type.LONG)),
-      Schema.Field.of("updated", Schema.of(Schema.Type.LONG)),
-      Schema.Field.of("rules", Schema.of(Schema.Type.STRING))
-    );
-
-    Schema ruleSchema = Schema.recordOf(
-      "rules",
-      Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-      Schema.Field.of("description", Schema.of(Schema.Type.STRING)),
-      Schema.Field.of("condition", Schema.of(Schema.Type.STRING)),
-      Schema.Field.of("action", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
-      Schema.Field.of("created", Schema.of(Schema.Type.LONG)),
-      Schema.Field.of("updated", Schema.of(Schema.Type.LONG))
-    );
-
-    createDataset("rulebook", Table.class.getName(), DatasetProperties.builder()
-      .add(Table.PROPERTY_SCHEMA, rulebookSchema.toString())
-      .add(Table.PROPERTY_SCHEMA_ROW_FIELD, "id")
-      .build());
-
-    createDataset("rules", Table.class.getName(), DatasetProperties.builder()
-      .add(Table.PROPERTY_SCHEMA, ruleSchema.toString())
-      .add(Table.PROPERTY_SCHEMA_ROW_FIELD, "id")
-      .build());
-
     addService(new YARERulebookService());
   }
 }
