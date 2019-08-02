@@ -21,16 +21,20 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import io.cdap.cdap.api.NamespaceSummary;
 import io.cdap.cdap.api.annotation.TransactionControl;
 import io.cdap.cdap.api.annotation.TransactionPolicy;
 import io.cdap.cdap.api.service.http.AbstractSystemHttpServiceHandler;
 import io.cdap.cdap.api.service.http.HttpServiceRequest;
 import io.cdap.cdap.api.service.http.HttpServiceResponder;
+import io.cdap.cdap.common.NamespaceNotFoundException;
+import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.cdap.spi.data.transaction.TransactionRunners;
 import org.apache.commons.jexl3.JexlException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.net.HttpURLConnection;
@@ -80,16 +84,18 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @POST
-  @Path("rules")
+  @Path("contexts/{context}/rules")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void create(HttpServiceRequest request, HttpServiceResponder responder) {
+  public void create(HttpServiceRequest request, HttpServiceResponder responder,
+                     @PathParam("context") String namespace) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RequestExtractor handler = new RequestExtractor(request);
         String content = handler.getContent(StandardCharsets.UTF_8);
         RuleRequest rule = GSON.fromJson(content, RuleRequest.class);
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.createRule(rule);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        rulesDB.createRule(namespaceId, rule);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -104,6 +110,9 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
       } catch (RuleAlreadyExistsException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (Exception e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
                            String.format("Unexpected error while creating rule. Please check your request. %s",
@@ -114,13 +123,16 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @GET
-  @Path("rules")
+  @Path("contexts/{context}/rules")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void rules(HttpServiceRequest request, HttpServiceResponder responder) {
+  public void rules(HttpServiceRequest request, HttpServiceResponder responder,
+                    @PathParam("context") String namespace) {
+
     TransactionRunners.run(getContext(), context -> {
       try {
         RulesDB rulesDB = RulesDB.get(context);
-        List<Map<String, Object>> rules = rulesDB.rules();
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        List<Map<String, Object>> rules = rulesDB.rules(namespaceId);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -129,6 +141,9 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         response.add("values", GSON.toJsonTree(rules));
 
         ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (Exception e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
                            String.format("Unexpected error while listing rules. Please check your request. %s",
@@ -139,16 +154,18 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @PUT
-  @Path("rules/{rule-id}")
+  @Path("contexts/{context}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void update(HttpServiceRequest request, HttpServiceResponder responder, @PathParam("rule-id") String id) {
+  public void update(HttpServiceRequest request, HttpServiceResponder responder, @PathParam("context") String namespace,
+                     @PathParam("rule-id") String id) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RequestExtractor handler = new RequestExtractor(request);
         String content = handler.getContent(StandardCharsets.UTF_8);
         RuleRequest rule = GSON.fromJson(content, RuleRequest.class);
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.updateRule(id, rule);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        rulesDB.updateRule(namespaceId, id, rule);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -161,6 +178,9 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         response.add("values", values);
 
         ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (RuleNotFoundException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
       } catch (Exception e) {
@@ -173,14 +193,16 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @GET
-  @Path("rules/{rule-id}")
+  @Path("contexts/{context}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void retrieve(HttpServiceRequest request, HttpServiceResponder responder,
+                       @PathParam("context") String namespace,
                        @PathParam("rule-id") String id, @QueryParam("format") String format) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RulesDB rulesDB = RulesDB.get(context);
-        Map<String, Object> result = rulesDB.retrieveRule(id);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        Map<String, Object> result = rulesDB.retrieveRule(namespaceId, id);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -196,10 +218,12 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         }
 
         ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (RuleNotFoundException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
       } catch (Exception e) {
-        LOG.debug("Error", e);
         ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
                            String.format("Unexpected error while retrieving rule. Please check your request. %s",
                                          e.getMessage())
@@ -209,16 +233,20 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @DELETE
-  @Path("rules/{rule-id}")
+  @Path("contexts/{context}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void delete(HttpServiceRequest request, HttpServiceResponder responder,
+  public void delete(HttpServiceRequest request, HttpServiceResponder responder, @PathParam("context") String namespace,
                      @PathParam("rule-id") String id) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.deleteRule(id);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        rulesDB.deleteRule(namespaceId, id);
 
         ServiceUtils.success(responder, String.format("Successfully deleted rule '%s'", id));
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (RuleNotFoundException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
       } catch (Exception e) {
@@ -231,25 +259,27 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @POST
-  @Path("rulebooks")
+  @Path("contexts/{context}/rulebooks")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void createRb(HttpServiceRequest request, HttpServiceResponder responder) {
+  public void createRb(HttpServiceRequest request, HttpServiceResponder responder,
+                       @PathParam("context") String namespace) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RequestExtractor handler = new RequestExtractor(request);
         String content = handler.getContent(StandardCharsets.UTF_8);
         RulesDB rulesDB = RulesDB.get(context);
+        NamespaceId namespaceId = getNamespaceId(namespace);
         String id;
 
         if (handler.isContentType("application/json")) {
           RulebookRequest rb = GSON.fromJson(content, RulebookRequest.class);
-          rulesDB.createRulebook(rb);
+          rulesDB.createRulebook(namespaceId, rb);
           id = rb.getId();
         } else if (handler.isContentType("application/rules-engine")) {
           Reader reader = new StringReader(content);
           Compiler compiler = new RulebookCompiler();
           Rulebook rulebook = compiler.compile(reader);
-          rulesDB.createRulebook(rulebook);
+          rulesDB.createRulebook(namespaceId, rulebook);
           id = rulebook.getName();
         } else {
           String header = handler.getHeader(RequestExtractor.CONTENT_TYPE, "");
@@ -269,6 +299,9 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         response.add("values", values);
 
         ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (RulebookAlreadyExistsException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
       } catch (Exception e) {
@@ -281,13 +314,15 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @GET
-  @Path("rulebooks")
+  @Path("contexts/{context}/rulebooks")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void rulebooks(HttpServiceRequest request, HttpServiceResponder responder) {
+  public void rulebooks(HttpServiceRequest request, HttpServiceResponder responder,
+                        @PathParam("context") String namespace) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RulesDB rulesDB = RulesDB.get(context);
-        List<Map<String, Object>> rulebooks = rulesDB.rulebooks();
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        List<Map<String, Object>> rulebooks = rulesDB.rulebooks(namespaceId);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -296,6 +331,9 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         response.add("values", GSON.toJsonTree(rulebooks));
 
         ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (Exception e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
                            String.format("Unable to list all rulebooks. %s", e.getMessage())
@@ -305,9 +343,10 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @PUT
-  @Path("rulebooks/{rulebook-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void updateRb(HttpServiceRequest request, HttpServiceResponder responder,
+                       @PathParam("context") String namespace,
                        @PathParam("rulebook-id") String id) {
     TransactionRunners.run(getContext(), context -> {
       try {
@@ -315,7 +354,8 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         String content = handler.getContent(StandardCharsets.UTF_8);
         RulebookRequest rulebook = GSON.fromJson(content, RulebookRequest.class);
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.updateRulebook(id, rulebook);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        rulesDB.updateRulebook(namespaceId, id, rulebook);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -328,6 +368,9 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         response.add("values", values);
 
         ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (Exception e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
                            String.format("Unable to update rulebook. %s", e.getMessage())
@@ -337,14 +380,16 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @GET
-  @Path("rulebooks/{rulebook-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void retrieveRb(HttpServiceRequest request, HttpServiceResponder responder,
+                         @PathParam("context") String namespace,
                          @PathParam("rulebook-id") String id) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RulesDB rulesDB = RulesDB.get(context);
-        String rulebookString = rulesDB.generateRulebook(id);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        String rulebookString = rulesDB.generateRulebook(namespaceId, id);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -357,6 +402,9 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         response.add("values", values);
 
         ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (RuleNotFoundException | RulebookNotFoundException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
       } catch (Exception e) {
@@ -368,14 +416,16 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @GET
-  @Path("rulebooks/{rulebook-id}/rules")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}/rules")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void retrieveRbRules(HttpServiceRequest request, HttpServiceResponder responder,
+                              @PathParam("context") String namespace,
                               @PathParam("rulebook-id") String id) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RulesDB rulesDB = RulesDB.get(context);
-        JsonArray rules = rulesDB.getRulebookRules(id);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        JsonArray rules = rulesDB.getRulebookRules(namespaceId, id);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -384,6 +434,9 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         response.add("values", rules);
 
         ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (RulebookNotFoundException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
       } catch (Exception e) {
@@ -395,16 +448,21 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @DELETE
-  @Path("rulebooks/{rulebook-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void deleteRb(HttpServiceRequest request, HttpServiceResponder responder,
+                       @PathParam("context") String namespace,
                        @PathParam("rulebook-id") String id) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.deleteRulebook(id);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        rulesDB.deleteRulebook(namespaceId, id);
 
         ServiceUtils.success(responder, String.format("Successfully deleted rulebook '%s'", id));
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (RulebookNotFoundException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
       } catch (Exception e) {
@@ -416,16 +474,21 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @PUT
-  @Path("rulebooks/{rulebook-id}/rules/{rule-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void addRuleToRb(HttpServiceRequest request, HttpServiceResponder responder,
+                          @PathParam("context") String namespace,
                           @PathParam("rulebook-id") String rbId, @PathParam("rule-id") String id) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.addRuleToRulebook(rbId, id);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        rulesDB.addRuleToRulebook(namespaceId, rbId, id);
 
         ServiceUtils.success(responder, String.format("Successfully added rule '%s' to rulebook '%s'", id, rbId));
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (RulebookNotFoundException | RuleNotFoundException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
       } catch (Exception e) {
@@ -437,16 +500,21 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @DELETE
-  @Path("rulebooks/{rulebook-id}/rules/{rule-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void deleteRuleFromRb(HttpServiceRequest request, HttpServiceResponder responder,
+                               @PathParam("context") String namespace,
                                @PathParam("rulebook-id") String rbId, @PathParam("rule-id") String id) {
     TransactionRunners.run(getContext(), context -> {
       try {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.removeRuleFromRulebook(rbId, id);
+        NamespaceId namespaceId = getNamespaceId(namespace);
+        rulesDB.removeRuleFromRulebook(namespaceId, rbId, id);
 
         ServiceUtils.success(responder, String.format("Successfully removed rule '%s' to rulebook '%s'", id, rbId));
+      } catch (NamespaceNotFoundException nnfe) {
+        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND,
+                           String.format("Namespace '%s' does not exist", namespace));
       } catch (RulebookNotFoundException | RuleNotFoundException e) {
         ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
       } catch (Exception e) {
@@ -455,6 +523,22 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         );
       }
     });
+  }
+
+  private NamespaceId getNamespaceId(String namespace) throws IOException, NamespaceNotFoundException {
+    NamespaceSummary namespaceSummary;
+
+    if (Contexts.SYSTEM.equals(namespace)) {
+      namespaceSummary = new NamespaceSummary(Contexts.SYSTEM, "", 0L);
+    } else {
+      namespaceSummary = getContext().getAdmin().getNamespaceSummary(namespace);
+
+      if (namespaceSummary == null) {
+        throw new NamespaceNotFoundException(new NamespaceId(namespace));
+      }
+    }
+
+    return new NamespaceId(namespaceSummary.getName());
   }
 
 }
