@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2019 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -21,22 +20,30 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSyntaxException;
+import io.cdap.cdap.api.NamespaceSummary;
 import io.cdap.cdap.api.annotation.TransactionControl;
 import io.cdap.cdap.api.annotation.TransactionPolicy;
 import io.cdap.cdap.api.service.http.AbstractSystemHttpServiceHandler;
 import io.cdap.cdap.api.service.http.HttpServiceRequest;
 import io.cdap.cdap.api.service.http.HttpServiceResponder;
 import io.cdap.cdap.spi.data.transaction.TransactionRunners;
+import io.cdap.re.exception.StatusCodeException;
+import io.cdap.re.exception.conflict.ConflictException;
+import io.cdap.re.exception.notfound.NamespaceNotFoundException;
+import io.cdap.re.exception.notfound.NotFoundException;
 import org.apache.commons.jexl3.JexlException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -80,381 +87,400 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
   }
 
   @POST
-  @Path("rules")
+  @Path("contexts/{context}/rules")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void create(HttpServiceRequest request, HttpServiceResponder responder) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
-        RequestExtractor handler = new RequestExtractor(request);
-        String content = handler.getContent(StandardCharsets.UTF_8);
-        RuleRequest rule = GSON.fromJson(content, RuleRequest.class);
+  public void create(HttpServiceRequest request, HttpServiceResponder responder,
+                     @PathParam("context") String namespace) {
+    respond(request, responder, () -> {
+      RequestExtractor handler = new RequestExtractor(request);
+      String content = handler.getContent(StandardCharsets.UTF_8);
+      RuleRequest rule = GSON.fromJson(content, RuleRequest.class);
+      NamespacedId namespacedId = getNamespacedId(namespace, rule.getId());
+      TransactionRunners.run(getContext(), context -> {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.createRule(rule);
+        rulesDB.createRule(namespacedId, rule);
+      });
 
-        JsonObject response = new JsonObject();
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", String.format("Successfully created rule '%s'.", rule.getId()));
-        response.addProperty("count", 1);
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", String.format("Successfully created rule '%s'.", namespacedId.getId()));
+      response.addProperty("count", 1);
 
-        JsonArray values = new JsonArray();
-        values.add(new JsonPrimitive(rule.getId()));
+      JsonArray values = new JsonArray();
+      values.add(new JsonPrimitive(namespacedId.getId()));
+      response.add("values", values);
 
-        response.add("values", values);
-
-        ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      } catch (RuleAlreadyExistsException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unexpected error while creating rule. Please check your request. %s",
-                                         e.getMessage())
-        );
-      }
+      return response;
     });
   }
 
   @GET
-  @Path("rules")
+  @Path("contexts/{context}/rules")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void rules(HttpServiceRequest request, HttpServiceResponder responder) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
+  public void rules(HttpServiceRequest request, HttpServiceResponder responder,
+                    @PathParam("context") String namespace) {
+    respond(request, responder, () -> {
+      Namespace ns = getNamespace(namespace);
+      List<Map<String, Object>> rules = TransactionRunners.run(getContext(), context -> {
+
         RulesDB rulesDB = RulesDB.get(context);
-        List<Map<String, Object>> rules = rulesDB.rules();
+        return rulesDB.rules(ns);
+      });
 
-        JsonObject response = new JsonObject();
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", "Successfully listed rules, testing .");
-        response.addProperty("count", rules.size());
-        response.add("values", GSON.toJsonTree(rules));
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", "Successfully listed rules, testing .");
+      response.addProperty("count", rules.size());
+      response.add("values", GSON.toJsonTree(rules));
 
-        ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unexpected error while listing rules. Please check your request. %s",
-                                         e.getMessage())
-        );
-      }
+      return response;
     });
   }
 
   @PUT
-  @Path("rules/{rule-id}")
+  @Path("contexts/{context}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void update(HttpServiceRequest request, HttpServiceResponder responder, @PathParam("rule-id") String id) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
-        RequestExtractor handler = new RequestExtractor(request);
-        String content = handler.getContent(StandardCharsets.UTF_8);
-        RuleRequest rule = GSON.fromJson(content, RuleRequest.class);
+  public void update(HttpServiceRequest request, HttpServiceResponder responder, @PathParam("context") String namespace,
+                     @PathParam("rule-id") String id) {
+    respond(request, responder, () -> {
+      RequestExtractor handler = new RequestExtractor(request);
+      String content = handler.getContent(StandardCharsets.UTF_8);
+      RuleRequest rule = GSON.fromJson(content, RuleRequest.class);
+      NamespacedId namespacedId = getNamespacedId(namespace, rule.getId());
+
+      TransactionRunners.run(getContext(), context -> {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.updateRule(id, rule);
+        rulesDB.updateRule(namespacedId, rule);
+      });
 
-        JsonObject response = new JsonObject();
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", String.format("Successfully updated rule '%s'.", id));
-        response.addProperty("count", 1);
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", String.format("Successfully updated rule '%s'.", namespacedId.getId()));
+      response.addProperty("count", 1);
 
-        JsonArray values = new JsonArray();
-        values.add(new JsonPrimitive(id));
+      JsonArray values = new JsonArray();
+      values.add(new JsonPrimitive(namespacedId.getId()));
+      response.add("values", values);
 
-        response.add("values", values);
-
-        ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      } catch (RuleNotFoundException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unexpected error while updating rule. Please check your request. %s",
-                                         e.getMessage())
-        );
-      }
+      return response;
     });
   }
 
   @GET
-  @Path("rules/{rule-id}")
+  @Path("contexts/{context}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void retrieve(HttpServiceRequest request, HttpServiceResponder responder,
+                       @PathParam("context") String namespace,
                        @PathParam("rule-id") String id, @QueryParam("format") String format) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
-        RulesDB rulesDB = RulesDB.get(context);
-        Map<String, Object> result = rulesDB.retrieveRule(id);
+    respond(request, responder, () -> TransactionRunners.run(getContext(), context -> {
+      NamespacedId namespacedId = getNamespacedId(namespace, id);
+      RulesDB rulesDB = RulesDB.get(context);
+      Map<String, Object> result = rulesDB.retrieveRule(namespacedId);
 
-        JsonObject response = new JsonObject();
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", String.format("Successfully retrieved rule '%s'.", id));
-        response.addProperty("count", 1);
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", String.format("Successfully retrieved rule '%s'.", namespacedId.getId()));
+      response.addProperty("count", 1);
 
-        if (format == null || format.equalsIgnoreCase("json")) {
-          response.add("values", GSON.toJsonTree(result));
-        } else {
-          JsonArray array = new JsonArray();
-          array.add(new JsonPrimitive(rulesDB.retrieveUsingRuleTemplate(id)));
-          response.add("values", array);
-        }
-
-        ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      } catch (RuleNotFoundException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        LOG.debug("Error", e);
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unexpected error while retrieving rule. Please check your request. %s",
-                                         e.getMessage())
-        );
+      if (format == null || format.equalsIgnoreCase("json")) {
+        response.add("values", GSON.toJsonTree(result));
+      } else {
+        JsonArray array = new JsonArray();
+        array.add(new JsonPrimitive(rulesDB.retrieveUsingRuleTemplate(id)));
+        response.add("values", array);
       }
-    });
+
+      return response;
+    }));
   }
 
   @DELETE
-  @Path("rules/{rule-id}")
+  @Path("contexts/{context}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void delete(HttpServiceRequest request, HttpServiceResponder responder,
+  public void delete(HttpServiceRequest request, HttpServiceResponder responder, @PathParam("context") String namespace,
                      @PathParam("rule-id") String id) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
+    respond(request, responder, () -> {
+      NamespacedId namespacedId = getNamespacedId(namespace, id);
+      TransactionRunners.run(getContext(), context -> {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.deleteRule(id);
+        rulesDB.deleteRule(namespacedId);
+      });
 
-        ServiceUtils.success(responder, String.format("Successfully deleted rule '%s'", id));
-      } catch (RuleNotFoundException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unexpected error while deleting the rule. " +
-                                           "Please check your request. %s", e.getMessage())
-        );
-      }
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", String.format("Successfully deleted rule '%s'", namespacedId.getId()));
+
+      return response;
     });
   }
 
   @POST
-  @Path("rulebooks")
+  @Path("contexts/{context}/rulebooks")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void createRb(HttpServiceRequest request, HttpServiceResponder responder) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
-        RequestExtractor handler = new RequestExtractor(request);
-        String content = handler.getContent(StandardCharsets.UTF_8);
-        RulesDB rulesDB = RulesDB.get(context);
-        String id;
+  public void createRb(HttpServiceRequest request, HttpServiceResponder responder,
+                       @PathParam("context") String namespace) {
+    respond(request, responder, () -> TransactionRunners.run(getContext(), context -> {
+      RequestExtractor handler = new RequestExtractor(request);
+      String content = handler.getContent(StandardCharsets.UTF_8);
+      RulesDB rulesDB = RulesDB.get(context);
+      NamespacedId namespacedId;
+      String id;
 
-        if (handler.isContentType("application/json")) {
-          RulebookRequest rb = GSON.fromJson(content, RulebookRequest.class);
-          rulesDB.createRulebook(rb);
-          id = rb.getId();
-        } else if (handler.isContentType("application/rules-engine")) {
-          Reader reader = new StringReader(content);
-          Compiler compiler = new RulebookCompiler();
-          Rulebook rulebook = compiler.compile(reader);
-          rulesDB.createRulebook(rulebook);
-          id = rulebook.getName();
-        } else {
-          String header = handler.getHeader(RequestExtractor.CONTENT_TYPE, "");
-          ServiceUtils.error(responder, HttpURLConnection.HTTP_BAD_REQUEST, "Unsupported content type " + header + ".");
-
-          return;
-        }
-
-        JsonObject response = new JsonObject();
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", String.format("Successfully created rulebook '%s'.", id));
-        response.addProperty("count", 1);
-
-        JsonArray values = new JsonArray();
-        values.add(new JsonPrimitive(id));
-
-        response.add("values", values);
-
-        ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      } catch (RulebookAlreadyExistsException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unexpected error while creating rulebook. " +
-                                           "Please check your request. %s", e.getMessage())
-        );
+      if (handler.isContentType("application/json")) {
+        RulebookRequest rb = GSON.fromJson(content, RulebookRequest.class);
+        namespacedId = getNamespacedId(namespace, rb.getId());
+        rulesDB.createRulebook(namespacedId, rb);
+        id = namespacedId.getId();
+      } else if (handler.isContentType("application/rules-engine")) {
+        Reader reader = new StringReader(content);
+        Compiler compiler = new RulebookCompiler();
+        Rulebook rulebook = compiler.compile(reader);
+        namespacedId = getNamespacedId(namespace, rulebook.getName());
+        rulesDB.createRulebook(namespacedId, rulebook);
+        id = namespacedId.getId();
+      } else {
+        String header = handler.getHeader(RequestExtractor.CONTENT_TYPE, "");
+        throw new StatusCodeException("Unsupported content type " + header + ".",
+                                      HttpURLConnection.HTTP_BAD_REQUEST);
       }
-    });
+
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty(
+        "message", String.format("Successfully created rulebook '%s'.", namespacedId.getId()));
+      response.addProperty("count", 1);
+
+      JsonArray values = new JsonArray();
+      values.add(new JsonPrimitive(id));
+      response.add("values", values);
+
+      return response;
+    }));
   }
 
   @GET
-  @Path("rulebooks")
+  @Path("contexts/{context}/rulebooks")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
-  public void rulebooks(HttpServiceRequest request, HttpServiceResponder responder) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
+  public void rulebooks(HttpServiceRequest request, HttpServiceResponder responder,
+                        @PathParam("context") String namespace) {
+    respond(request, responder, () -> {
+      List<Map<String, Object>> rulebooks = TransactionRunners.run(getContext(), context -> {
+        Namespace ns = getNamespace(namespace);
         RulesDB rulesDB = RulesDB.get(context);
-        List<Map<String, Object>> rulebooks = rulesDB.rulebooks();
+        return rulesDB.rulebooks(ns);
+      });
 
-        JsonObject response = new JsonObject();
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", "Successfully listed rulebooks.");
-        response.addProperty("count", rulebooks.size());
-        response.add("values", GSON.toJsonTree(rulebooks));
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", "Successfully listed rulebooks.");
+      response.addProperty("count", rulebooks.size());
+      response.add("values", GSON.toJsonTree(rulebooks));
 
-        ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unable to list all rulebooks. %s", e.getMessage())
-        );
-      }
+      return response;
     });
   }
 
   @PUT
-  @Path("rulebooks/{rulebook-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void updateRb(HttpServiceRequest request, HttpServiceResponder responder,
+                       @PathParam("context") String namespace,
                        @PathParam("rulebook-id") String id) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
-        RequestExtractor handler = new RequestExtractor(request);
-        String content = handler.getContent(StandardCharsets.UTF_8);
-        RulebookRequest rulebook = GSON.fromJson(content, RulebookRequest.class);
+    respond(request, responder, () -> {
+      RequestExtractor handler = new RequestExtractor(request);
+      String content = handler.getContent(StandardCharsets.UTF_8);
+      RulebookRequest rulebook = GSON.fromJson(content, RulebookRequest.class);
+      NamespacedId namespacedId = getNamespacedId(namespace, id);
+      TransactionRunners.run(getContext(), context -> {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.updateRulebook(id, rulebook);
+        rulesDB.updateRulebook(namespacedId, rulebook);
 
-        JsonObject response = new JsonObject();
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", String.format("Successfully updated rule '%s'.", id));
-        response.addProperty("count", 1);
+      });
 
-        JsonArray values = new JsonArray();
-        values.add(new JsonPrimitive(id));
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", String.format("Successfully updated rule '%s'.", namespacedId.getId()));
+      response.addProperty("count", 1);
 
-        response.add("values", values);
+      JsonArray values = new JsonArray();
+      values.add(new JsonPrimitive(id));
+      response.add("values", values);
 
-        ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unable to update rulebook. %s", e.getMessage())
-        );
-      }
+      return response;
     });
   }
 
   @GET
-  @Path("rulebooks/{rulebook-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void retrieveRb(HttpServiceRequest request, HttpServiceResponder responder,
+                         @PathParam("context") String namespace,
                          @PathParam("rulebook-id") String id) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
+    respond(request, responder, () -> {
+      NamespacedId namespacedId = getNamespacedId(namespace, id);
+      String rulebookString = TransactionRunners.run(getContext(), context -> {
         RulesDB rulesDB = RulesDB.get(context);
-        String rulebookString = rulesDB.generateRulebook(id);
+        return rulesDB.generateRulebook(namespacedId);
+      });
 
-        JsonObject response = new JsonObject();
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", String.format("Successfully generated rulebook '%s'.", id));
-        response.addProperty("count", 1);
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message", String.format("Successfully generated rulebook '%s'.", namespacedId.getId()));
+      response.addProperty("count", 1);
 
-        JsonArray values = new JsonArray();
-        values.add(new JsonPrimitive(rulebookString));
+      JsonArray values = new JsonArray();
+      values.add(new JsonPrimitive(rulebookString));
+      response.add("values", values);
 
-        response.add("values", values);
-
-        ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      } catch (RuleNotFoundException | RulebookNotFoundException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unable to retrieve rulebook. %s", e.getMessage())
-        );
-      }
+      return response;
     });
   }
 
   @GET
-  @Path("rulebooks/{rulebook-id}/rules")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}/rules")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void retrieveRbRules(HttpServiceRequest request, HttpServiceResponder responder,
+                              @PathParam("context") String namespace,
                               @PathParam("rulebook-id") String id) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
+    respond(request, responder, () -> {
+      NamespacedId namespacedId = getNamespacedId(namespace, id);
+      JsonArray rules = TransactionRunners.run(getContext(), context -> {
         RulesDB rulesDB = RulesDB.get(context);
-        JsonArray rules = rulesDB.getRulebookRules(id);
+        return rulesDB.getRulebookRules(namespacedId);
+      });
 
-        JsonObject response = new JsonObject();
-        response.addProperty("status", HttpURLConnection.HTTP_OK);
-        response.addProperty("message", String.format("Successfully listed rules for the rulebook '%s'.", id));
-        response.addProperty("count", rules.size());
-        response.add("values", rules);
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message",
+                           String.format("Successfully listed rules for the rulebook '%s'.", namespacedId.getId()));
+      response.addProperty("count", rules.size());
+      response.add("values", rules);
 
-        ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, response.toString());
-      } catch (RulebookNotFoundException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unable to retrieve rules for rulebook. %s", e.getMessage())
-        );
-      }
+      return response;
     });
   }
 
   @DELETE
-  @Path("rulebooks/{rulebook-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void deleteRb(HttpServiceRequest request, HttpServiceResponder responder,
+                       @PathParam("context") String namespace,
                        @PathParam("rulebook-id") String id) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
+    respond(request, responder, () -> {
+      NamespacedId namespacedId = getNamespacedId(namespace, id);
+      TransactionRunners.run(getContext(), context -> {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.deleteRulebook(id);
+        rulesDB.deleteRulebook(namespacedId);
+      });
 
-        ServiceUtils.success(responder, String.format("Successfully deleted rulebook '%s'", id));
-      } catch (RulebookNotFoundException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unable to delete rulebook. %s", e.getMessage())
-        );
-      }
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message",
+                           String.format("Successfully deleted rulebook '%s'", namespacedId.getId()));
+
+      return response;
     });
   }
 
   @PUT
-  @Path("rulebooks/{rulebook-id}/rules/{rule-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void addRuleToRb(HttpServiceRequest request, HttpServiceResponder responder,
+                          @PathParam("context") String namespace,
                           @PathParam("rulebook-id") String rbId, @PathParam("rule-id") String id) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
+    respond(request, responder, () -> {
+      NamespacedId rulebookNamespacedId = getNamespacedId(namespace, rbId);
+      NamespacedId ruleNamespacedId = getNamespacedId(namespace, id);
+      TransactionRunners.run(getContext(), context -> {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.addRuleToRulebook(rbId, id);
+        rulesDB.addRuleToRulebook(rulebookNamespacedId, ruleNamespacedId);
+      });
 
-        ServiceUtils.success(responder, String.format("Successfully added rule '%s' to rulebook '%s'", id, rbId));
-      } catch (RulebookNotFoundException | RuleNotFoundException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unable to add rule to rulebook. %s", e.getMessage())
-        );
-      }
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message",
+                           String.format("Successfully added rule '%s' to rulebook '%s'", ruleNamespacedId.getId(),
+                                         rulebookNamespacedId.getId()));
+
+      return response;
     });
   }
 
   @DELETE
-  @Path("rulebooks/{rulebook-id}/rules/{rule-id}")
+  @Path("contexts/{context}/rulebooks/{rulebook-id}/rules/{rule-id}")
   @TransactionPolicy(value = TransactionControl.EXPLICIT)
   public void deleteRuleFromRb(HttpServiceRequest request, HttpServiceResponder responder,
+                               @PathParam("context") String namespace,
                                @PathParam("rulebook-id") String rbId, @PathParam("rule-id") String id) {
-    TransactionRunners.run(getContext(), context -> {
-      try {
+    respond(request, responder, () -> {
+      NamespacedId rulebookNamespacedId = getNamespacedId(namespace, rbId);
+      NamespacedId ruleNamespacedId = getNamespacedId(namespace, id);
+      TransactionRunners.run(getContext(), context -> {
         RulesDB rulesDB = RulesDB.get(context);
-        rulesDB.removeRuleFromRulebook(rbId, id);
+        rulesDB.removeRuleFromRulebook(rulebookNamespacedId, ruleNamespacedId);
+      });
 
-        ServiceUtils.success(responder, String.format("Successfully removed rule '%s' to rulebook '%s'", id, rbId));
-      } catch (RulebookNotFoundException | RuleNotFoundException e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, e.getMessage());
-      } catch (Exception e) {
-        ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
-                           String.format("Unable to remove rule from rulebook. %s", e.getMessage())
-        );
-      }
+      JsonObject response = new JsonObject();
+      response.addProperty("status", HttpURLConnection.HTTP_OK);
+      response.addProperty("message",
+                           String.format("Successfully removed rule '%s' to rulebook '%s'", ruleNamespacedId.getId(),
+                                         rulebookNamespacedId.getId()));
+
+      return response;
+
     });
+  }
+
+  private NamespacedId getNamespacedId(String namespace, String id) throws IOException, NamespaceNotFoundException {
+    Namespace ns = getNamespace(namespace);
+
+    return new NamespacedId(ns, id);
+  }
+
+  private Namespace getNamespace(String namespace) throws IOException, NamespaceNotFoundException {
+    NamespaceSummary namespaceSummary;
+
+    if (Contexts.SYSTEM.equals(namespace)) {
+      return new Namespace(namespace, 0L);
+    }
+
+    namespaceSummary = getContext().getAdmin().getNamespaceSummary(namespace);
+
+    if (namespaceSummary == null) {
+      throw new NamespaceNotFoundException(namespace);
+    }
+
+    return new Namespace(namespaceSummary.getName(), namespaceSummary.getGeneration());
+  }
+
+  /**
+   * Utility method for executing an endpoint with common error handling built in. A response will always be sent after
+   * this method is called so the http responder should not be used after this. The endpoint logic should also not use
+   * the responder in any way.
+   *
+   * If the callable throws a {@link StatusCodeException}, the exception's status code and message will be used to
+   * create the response. If a {@link JsonSyntaxException} is thrown, a 400 response will be sent. If anything else if
+   * thrown, a 500 response will be sent. If nothing is thrown, the result of the callable will be sent as json.
+   *
+   * @param request the http request
+   * @param responder the http responder
+   * @param callable the endpoint logic to run
+   */
+  private void respond(HttpServiceRequest request, HttpServiceResponder responder, Callable<JsonObject> callable) {
+    try {
+      JsonObject results = callable.call();
+      ServiceUtils.sendJson(responder, HttpURLConnection.HTTP_OK, results.toString());
+    } catch (NotFoundException nfe) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_NOT_FOUND, nfe.getMessage());
+    } catch (ConflictException ce) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_CONFLICT, ce.getMessage());
+    } catch (JsonSyntaxException jse) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_BAD_REQUEST, jse.getMessage());
+    } catch (Exception e) {
+      ServiceUtils.error(responder, HttpURLConnection.HTTP_INTERNAL_ERROR,
+                         String.format("Error processing %s %s: %s", request.getMethod(), request.getRequestURI(),
+                                       e.getMessage()));
+    }
   }
 
 }
