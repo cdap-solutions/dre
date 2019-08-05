@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.TreeMap;
 
 /**
  * This class {@link RulesDB} manages all the connections defined. It manages the lifecycle of Rules and Rulebooks
@@ -135,7 +134,7 @@ final class RulesDB {
     }
   }
 
-  void createRule(NamespaceId namespaceId, RuleRequest rule) throws RuleAlreadyExistsException, IOException {
+  void createRule(NamespaceId namespaceId, Rule rule) throws RuleAlreadyExistsException, IOException {
     if (rule.getId() == null || rule.getId().trim().isEmpty()) {
       throw new IllegalArgumentException("Rule requires a mandatory field 'id'.");
     }
@@ -169,7 +168,7 @@ final class RulesDB {
     rulesTable.upsert(ruleFields);
   }
 
-  void updateRule(NamespaceId namespaceId, String id, RuleRequest rule) throws RuleNotFoundException, IOException {
+  void updateRule(NamespaceId namespaceId, String id, Rule rule) throws RuleNotFoundException, IOException {
     String namespace = namespaceId.getNamespace();
 
     Collection<Field<?>> keyFields = new ArrayList<>();
@@ -195,7 +194,7 @@ final class RulesDB {
     rulesTable.upsert(updatedRuleFields);
   }
 
-  Map<String, Object> retrieveRule(NamespaceId namespaceId, String id) throws RuleNotFoundException, IOException {
+  Rule retrieveRule(NamespaceId namespaceId, String id) throws RuleNotFoundException, IOException {
     String namespace = namespaceId.getNamespace();
 
     Collection<Field<?>> keyFields = new ArrayList<>();
@@ -211,21 +210,16 @@ final class RulesDB {
     }
 
     StructuredRow row = optionalStructuredRow.get();
-    Map<String, Object> rule = new TreeMap<>();
-
-    rule.put(NAMESPACE_COL, row.getString(NAMESPACE_COL));
-    rule.put(ID_COL, row.getString(ID_COL));
-    rule.put(DESCRIPTION_COL, row.getString(DESCRIPTION_COL));
-    rule.put(CONDITION_COL, row.getString(CONDITION_COL));
-    rule.put(CREATED_COL, row.getLong(CREATED_COL));
-    rule.put(UPDATED_COL, row.getLong(UPDATED_COL));
+    Rule.Builder ruleBuilder = new Rule.Builder(row.getString(ID_COL), row.getString(NAMESPACE_COL))
+      .description(row.getString(DESCRIPTION_COL)).when(row.getString(CONDITION_COL)).created(row.getLong(CREATED_COL))
+      .updated(row.getLong(UPDATED_COL));
 
     String then = row.getString(ACTION_COL);
     List<String> thens = new ArrayList<>();
     Collections.addAll(thens, Objects.requireNonNull(then).split(";"));
-    rule.put(ACTION_COL, thens);
+    ruleBuilder.then(thens);
 
-    return rule;
+    return ruleBuilder.build();
   }
 
   void deleteRule(NamespaceId namespaceId, String id) throws RuleNotFoundException, IOException {
@@ -322,38 +316,35 @@ final class RulesDB {
     rulebookTable.upsert(rulebookFields);
   }
 
-  /**
-   * Creates a rulebook with the rules specified in {@link RulebookRequest}. The method attempts to create the rules
-   * specified in {@link Rulebook} object. However, a {@link RuleNotFoundException} might be thrown when creating the
-   * rulebook if one of the rules is not found. This case may occur if there was an exception thrown when attempting to
-   * create a rule.
-   *
-   * @param rulebook the rulebook object to be created
-   * @throws RulebookAlreadyExistsException if the rulebook already exists
-   * @throws IOException if there is an IO error
-   * @throws RuleNotFoundException if one of the rules in the rulebook does not exist. This exception maybe thrown if
-   * there was an exception thrown during the creation of the rule
-   */
-  void createRulebook(NamespaceId namespaceId, Rulebook rulebook)
-    throws RulebookAlreadyExistsException, IOException, RuleNotFoundException {
-    List<String> ruleIds = new ArrayList<>();
-
-    for (Rule rule : rulebook.getRules()) {
-      RuleRequest request = new RuleRequest(rule.getName(), rule.getDescription(), rule.getWhen(), rule.getThen());
-      ruleIds.add(rule.getName());
-
-      try {
-        createRule(namespaceId, request);
-      } catch (RuleAlreadyExistsException e) {
-        // Nothing to be done here.
-      }
-    }
-
-    RulebookRequest rbreq = new RulebookRequest(rulebook.getName(), rulebook.getMeta().getDescription(),
-                                                rulebook.getMeta().getSource(), rulebook.getMeta().getUser(),
-                                                ruleIds);
-    createRulebook(namespaceId, rbreq);
-  }
+  // /**
+  //  * Creates a rulebook with the rules specified in {@link RulebookRequest}. The method attempts to create the rules
+  //  * specified in {@link Rulebook} object. However, a {@link RuleNotFoundException} might be thrown when creating the
+  //  * rulebook if one of the rules is not found. This case may occur if there was an exception thrown when attempting to
+  //  * create a rule.
+  //  *
+  //  * @param rulebook the rulebook object to be created
+  //  * @throws RulebookAlreadyExistsException if the rulebook already exists
+  //  * @throws IOException if there is an IO error
+  //  * @throws RuleNotFoundException if one of the rules in the rulebook does not exist. This exception maybe thrown if
+  //  * there was an exception thrown during the creation of the rule
+  //  */
+  // void createRulebook(NamespaceId namespaceId, Rulebook rulebook)
+  //   throws RulebookAlreadyExistsException, IOException, RuleNotFoundException {
+  //   List<String> ruleIds = new ArrayList<>();
+  //
+  //   for (Rule rule : rulebook.getRules()) {
+  //     try {
+  //       createRule(namespaceId, rule);
+  //     } catch (RuleAlreadyExistsException e) {
+  //       // Nothing to be done here.
+  //     }
+  //   }
+  //
+  //   RulebookRequest rbreq = new RulebookRequest(rulebook.getName(), rulebook.getMeta().getDescription(),
+  //                                               rulebook.getMeta().getSource(), rulebook.getMeta().getUser(),
+  //                                               ruleIds);
+  //   createRulebook(namespaceId, rbreq);
+  // }
 
   void updateRulebook(NamespaceId namespaceId, String id, RulebookRequest rulebookRequest)
     throws RulebookAlreadyExistsException, IOException {
@@ -601,8 +592,8 @@ final class RulesDB {
    *
    * @return List of rules in the system.
    */
-  List<Map<String, Object>> rules(NamespaceId namespaceId) throws IOException {
-    List<Map<String, Object>> rules = new ArrayList<>();
+  List<Rule> rules(NamespaceId namespaceId) throws IOException {
+    List<Rule> rules = new ArrayList<>();
     List<Field<?>> keyFields = new ArrayList<>(1);
     keyFields.add(Fields.stringField(NAMESPACE_COL, namespaceId.getNamespace()));
     Range range = Range.singleton(keyFields);
@@ -610,15 +601,16 @@ final class RulesDB {
     try (CloseableIterator<StructuredRow> rowIter = rulesTable.scan(range, Integer.MAX_VALUE)) {
       while (rowIter.hasNext()) {
         StructuredRow row = rowIter.next();
-        Map<String, Object> object = new HashMap<>();
-        object.put(NAMESPACE_COL, row.getString(NAMESPACE_COL));
-        object.put(ID_COL, row.getString(ID_COL));
-        object.put(DESCRIPTION_COL, row.getString(DESCRIPTION_COL));
-        object.put(CONDITION_COL, row.getString(CONDITION_COL));
-        object.put(ACTION_COL, row.getString(ACTION_COL));
-        object.put(CREATED_COL, row.getLong(CREATED_COL));
-        object.put(UPDATED_COL, row.getLong(UPDATED_COL));
-        rules.add(object);
+        Rule.Builder ruleBuilder = new Rule.Builder(row.getString(ID_COL), row.getString(NAMESPACE_COL))
+          .description(row.getString(DESCRIPTION_COL)).when(row.getString(CONDITION_COL))
+          .created(row.getLong(CREATED_COL)).updated(row.getLong(UPDATED_COL));
+
+        String then = row.getString(ACTION_COL);
+        List<String> thens = new ArrayList<>();
+        Collections.addAll(thens, Objects.requireNonNull(then).split(";"));
+        ruleBuilder.then(thens);
+
+        rules.add(ruleBuilder.build());
       }
     }
 

@@ -35,8 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -92,7 +90,7 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
       try {
         RequestExtractor handler = new RequestExtractor(request);
         String content = handler.getContent(StandardCharsets.UTF_8);
-        RuleRequest rule = GSON.fromJson(content, RuleRequest.class);
+        Rule rule = GSON.fromJson(content, Rule.class);
         RulesDB rulesDB = RulesDB.get(context);
         NamespaceId namespaceId = getNamespaceId(namespace);
         rulesDB.createRule(namespaceId, rule);
@@ -132,7 +130,7 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
       try {
         RulesDB rulesDB = RulesDB.get(context);
         NamespaceId namespaceId = getNamespaceId(namespace);
-        List<Map<String, Object>> rules = rulesDB.rules(namespaceId);
+        List<Rule> rules = rulesDB.rules(namespaceId);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -162,7 +160,7 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
       try {
         RequestExtractor handler = new RequestExtractor(request);
         String content = handler.getContent(StandardCharsets.UTF_8);
-        RuleRequest rule = GSON.fromJson(content, RuleRequest.class);
+        Rule rule = GSON.fromJson(content, Rule.class);
         RulesDB rulesDB = RulesDB.get(context);
         NamespaceId namespaceId = getNamespaceId(namespace);
         rulesDB.updateRule(namespaceId, id, rule);
@@ -202,7 +200,7 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
       try {
         RulesDB rulesDB = RulesDB.get(context);
         NamespaceId namespaceId = getNamespaceId(namespace);
-        Map<String, Object> result = rulesDB.retrieveRule(namespaceId, id);
+        Rule rule = rulesDB.retrieveRule(namespaceId, id);
 
         JsonObject response = new JsonObject();
         response.addProperty("status", HttpURLConnection.HTTP_OK);
@@ -210,7 +208,7 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
         response.addProperty("count", 1);
 
         if (format == null || format.equalsIgnoreCase("json")) {
-          response.add("values", GSON.toJsonTree(result));
+          response.add("values", GSON.toJsonTree(rule));
         } else {
           JsonArray array = new JsonArray();
           array.add(new JsonPrimitive(rulesDB.retrieveUsingRuleTemplate(id)));
@@ -276,11 +274,15 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
           rulesDB.createRulebook(namespaceId, rb);
           id = rb.getId();
         } else if (handler.isContentType("application/rules-engine")) {
-          Reader reader = new StringReader(content);
-          Compiler compiler = new RulebookCompiler();
-          Rulebook rulebook = compiler.compile(reader);
-          rulesDB.createRulebook(namespaceId, rulebook);
-          id = rulebook.getName();
+          ServiceUtils.error(responder, HttpURLConnection.HTTP_BAD_REQUEST,
+                             "Unsupported content type 'application/rules-engine'.");
+
+          return;
+          // Reader reader = new StringReader(content);
+          // Compiler compiler = new RulebookCompiler();
+          // Rulebook rulebook = compiler.compile(reader);
+          // rulesDB.createRulebook(namespaceId, rulebook);
+          // id = rulebook.getName();
         } else {
           String header = handler.getHeader(RequestExtractor.CONTENT_TYPE, "");
           ServiceUtils.error(responder, HttpURLConnection.HTTP_BAD_REQUEST, "Unsupported content type " + header + ".");
