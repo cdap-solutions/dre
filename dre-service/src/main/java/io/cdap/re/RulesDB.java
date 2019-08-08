@@ -151,7 +151,7 @@ final class RulesDB {
     if (rulesTable.read(keyFields).isPresent()) {
       throw new RuleAlreadyExistsException(
         String.format("Rule '%s' in namespace '%s' already exists in the rules database. Delete it first or use PUT.",
-                      namespacedId.getId(), namespacedId.getNamespace())
+                      namespacedId.getId(), namespacedId.getNamespace().getName())
       );
     }
 
@@ -176,7 +176,7 @@ final class RulesDB {
       throw new RuleNotFoundException(
         String.format("Rule '%s' in namespace '%s' does not exist. Create it first with a POST request.",
                       namespacedId.getId(),
-                      namespacedId.getNamespace()
+                      namespacedId.getNamespace().getName()
         )
       );
     }
@@ -200,7 +200,7 @@ final class RulesDB {
       throw new RuleNotFoundException(
         String.format("Rule '%s' in namespace '%s' does not exist. Create it first with a POST request.",
                       namespacedId.getId(),
-                      namespacedId.getNamespace()
+                      namespacedId.getNamespace().getName()
         )
       );
     }
@@ -229,7 +229,7 @@ final class RulesDB {
       throw new RuleNotFoundException(
         String.format("Rule '%s' in namespace '%s' does not exist. Create it first with a POST request.",
                       namespacedId.getId(),
-                      namespacedId.getNamespace()
+                      namespacedId.getNamespace().getName()
         )
       );
     }
@@ -272,7 +272,7 @@ final class RulesDB {
     if (optionalRulebookStructuredRow.isPresent()) {
       throw new RulebookAlreadyExistsException(
         String.format("Rulebook '%s' in namespace '%s' already exists. Either update it or delete it and create it.",
-                      namespacedId.getId(), namespacedId.getNamespace())
+                      namespacedId.getId(), namespacedId.getNamespace().getName())
       );
     }
 
@@ -290,7 +290,7 @@ final class RulesDB {
         throw new RuleNotFoundException(
           String.format(
             "Rulebook '%s' in namespace '%s' includes a rule '%s' that does not exist. Please add rule first",
-            namespacedId.getId(), namespace, rule)
+            namespacedId.getId(), namespace.getName(), rule)
         );
       }
     }
@@ -350,7 +350,7 @@ final class RulesDB {
       throw new RulebookAlreadyExistsException(
         String.format("Rulebook '%s' in namespace '%s' does not exist. Create it first with a POST request.",
                       namespacedId.getId(),
-                      namespacedId.getNamespace())
+                      namespacedId.getNamespace().getName())
       );
     }
 
@@ -373,7 +373,7 @@ final class RulesDB {
       throw new RulebookNotFoundException(
         String.format("Rulebook '%s' in namespace '%s' not found.",
                       rulebookNamespacedId.getId(),
-                      rulebookNamespacedId.getNamespace())
+                      rulebookNamespacedId.getNamespace().getName())
       );
     }
 
@@ -384,7 +384,7 @@ final class RulesDB {
       throw new RuleNotFoundException(
         String.format(
           "Attempt to add rule '%s' to rulebook '%s' in namespace '%s' failed as rule doesn't exist in rules database.",
-          rulebookNamespacedId.getId(), ruleNamespacedId.getId(), rulebookNamespacedId.getNamespace())
+          rulebookNamespacedId.getId(), ruleNamespacedId.getId(), rulebookNamespacedId.getNamespace().getName())
       );
     }
 
@@ -394,7 +394,8 @@ final class RulesDB {
     if (rules.contains(ruleNamespacedId.getId())) {
       throw new RuleAlreadyExistsException(
         String.format("Rule '%s' already exists in the rulebook '%s' in namespace '%s'.",
-                      ruleNamespacedId.getId(), rulebookNamespacedId.getId(), rulebookNamespacedId.getNamespace())
+                      ruleNamespacedId.getId(), rulebookNamespacedId.getId(),
+                      rulebookNamespacedId.getNamespace().getName())
       );
     }
 
@@ -417,7 +418,7 @@ final class RulesDB {
       throw new RulebookNotFoundException(
         String.format("Rulebook '%s' in namespace '%s' not found.",
                       rulebookNamespacedId.getId(),
-                      rulebookNamespacedId.getNamespace())
+                      rulebookNamespacedId.getNamespace().getName())
       );
     }
 
@@ -428,7 +429,7 @@ final class RulesDB {
       throw new RuleNotFoundException(
         String.format(
           "Attempt to remove rule '%s' from rulebook '%s' in namespace '%s' failed as rule doesn't exist in rules database.",
-          rulebookNamespacedId.getId(), ruleNamespacedId.getId(), rulebookNamespacedId.getNamespace())
+          rulebookNamespacedId.getId(), ruleNamespacedId.getId(), rulebookNamespacedId.getNamespace().getName())
       );
     }
 
@@ -450,7 +451,8 @@ final class RulesDB {
 
     if (!optionalStructuredRow.isPresent()) {
       throw new RulebookNotFoundException(
-        String.format("Rulebook '%s' in namespace '%s' not found.", namespacedId.getId(), namespacedId.getNamespace()));
+        String.format("Rulebook '%s' in namespace '%s' not found.", namespacedId.getId(),
+                      namespacedId.getNamespace().getName()));
     }
 
     rulebookTable.delete(keyFields);
@@ -462,7 +464,8 @@ final class RulesDB {
 
     if (!optionalRulebookStructuredRow.isPresent()) {
       throw new RulebookNotFoundException(
-        String.format("Rulebook '%s' in namespace '%s' not found.", namespacedId.getId(), namespacedId.getNamespace()));
+        String.format("Rulebook '%s' in namespace '%s' not found.", namespacedId.getId(),
+                      namespacedId.getNamespace().getName()));
     }
 
     StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
@@ -518,7 +521,8 @@ final class RulesDB {
 
     if (!optionalRulebookStructuredRow.isPresent()) {
       throw new RulebookNotFoundException(
-        String.format("Rulebook '%s' in namespace '%s' not found.", namespacedId.getId(), namespacedId.getNamespace()));
+        String.format("Rulebook '%s' in namespace '%s' not found.", namespacedId.getId(),
+                      namespacedId.getNamespace().getName()));
     }
 
     StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
@@ -540,7 +544,7 @@ final class RulesDB {
         throw new RuleNotFoundException(
           String.format(
             "Rulebook '%s' in namespace '%s' contains rule '%s', but rule '%s' is not present in rules database.",
-            namespacedId.getId(), namespace, rule, rule)
+            namespacedId.getId(), namespace.getName(), rule, rule)
         );
       }
 
