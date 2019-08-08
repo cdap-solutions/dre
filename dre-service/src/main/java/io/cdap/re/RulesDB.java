@@ -288,9 +288,9 @@ final class RulesDB {
 
       if (!optionalRuleStructuredRow.isPresent()) {
         throw new RuleNotFoundException(
-          String
-            .format("Rulebook '%s' in namespace '%s' includes a rule '%s' that does not exist. Please add rule first",
-                    namespacedId.getId(), namespace, rule)
+          String.format(
+            "Rulebook '%s' in namespace '%s' includes a rule '%s' that does not exist. Please add rule first",
+            namespacedId.getId(), namespace, rule)
         );
       }
     }
@@ -400,8 +400,7 @@ final class RulesDB {
 
     rules.add(ruleNamespacedId.getId());
 
-    Collection<Field<?>> rulebookFields = new ArrayList<>();
-    rulebookFields.add(Fields.stringField(ID_COL, rulebookNamespacedId.getId()));
+    Collection<Field<?>> rulebookFields = new ArrayList<>(rulebookKeyFields);
     rulebookFields.add(Fields.longField(UPDATED_COL, getCurrentTime()));
     rulebookFields.add(Fields.longField(VERSION_COL, rulebookRow.getLong(VERSION_COL)));
     rulebookFields.add(Fields.stringField(RULES_COL, GSON.toJson(rules)));
