@@ -16,6 +16,7 @@
 
 package io.cdap.re;
 
+import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -404,7 +405,7 @@ final class RulesDB {
     Collection<Field<?>> rulebookFields = new ArrayList<>(rulebookKeyFields);
     rulebookFields.add(Fields.longField(UPDATED_COL, getCurrentTime()));
     rulebookFields.add(Fields.longField(VERSION_COL, rulebookRow.getLong(VERSION_COL)));
-    rulebookFields.add(Fields.stringField(RULES_COL, GSON.toJson(rules)));
+    rulebookFields.add(Fields.stringField(RULES_COL, Joiner.on(",").join(rules)));
 
     rulebookTable.upsert(rulebookFields);
   }
@@ -440,7 +441,7 @@ final class RulesDB {
     Collection<Field<?>> rulebookFields = new ArrayList<>(rulebookKeyFields);
     rulebookFields.add(Fields.longField(UPDATED_COL, getCurrentTime()));
     rulebookFields.add(Fields.longField(VERSION_COL, rulebookRow.getLong(VERSION_COL) + 1));
-    rulebookFields.add(Fields.stringField(RULES_COL, GSON.toJson(rules)));
+    rulebookFields.add(Fields.stringField(RULES_COL, Joiner.on(",").join(rules)));
 
     rulebookTable.upsert(rulebookFields);
   }
@@ -556,7 +557,7 @@ final class RulesDB {
     return String.format(RULEBOOK_TEMPLATE, rulebookRow.getString(ID_COL), rulebookRow.getLong(VERSION_COL),
                          rulebookRow.getString(DESCRIPTION_COL), rulebookRow.getLong(CREATED_COL),
                          rulebookRow.getLong(UPDATED_COL), rulebookRow.getString(SOURCE_COL),
-                         rulebookRow.getString(USER_COL), ruleOutput);
+                         rulebookRow.getString(USER_COL), Joiner.on("").join(ruleOutput));
   }
 
   /**
