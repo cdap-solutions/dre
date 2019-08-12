@@ -423,7 +423,7 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
       JsonObject response = new JsonObject();
       response.addProperty("status", HttpURLConnection.HTTP_OK);
       response.addProperty("message",
-                           String.format("Successfully removed rule '%s' to rulebook '%s'", ruleNamespacedId.getId(),
+                           String.format("Successfully removed rule '%s' from rulebook '%s'", ruleNamespacedId.getId(),
                                          rulebookNamespacedId.getId()));
 
       return response;

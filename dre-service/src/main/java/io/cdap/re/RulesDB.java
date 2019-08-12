@@ -21,7 +21,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import com.google.gson.reflect.TypeToken;
 import io.cdap.cdap.api.dataset.lib.CloseableIterator;
 import io.cdap.cdap.spi.data.StructuredRow;
 import io.cdap.cdap.spi.data.StructuredTable;
@@ -41,8 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,7 +59,6 @@ final class RulesDB {
 
   private static final Logger LOG = LoggerFactory.getLogger(RulesDB.class);
 
-  private static final Type LIST_STRING_TYPE = new TypeToken<List<String>>() {}.getType();
   private static final Gson GSON = new Gson();
   private static final String ID_COL = "id";
   private static final String NAMESPACE_COL = "namespace";
@@ -300,7 +298,7 @@ final class RulesDB {
     rulebookFields.add(Fields.stringField(DESCRIPTION_COL, rulebookRequest.getDescription()));
     rulebookFields.add(Fields.stringField(USER_COL, rulebookRequest.getUser()));
     rulebookFields.add(Fields.longField(VERSION_COL, 1L));
-    rulebookFields.add(Fields.stringField(RULES_COL, GSON.toJson(rulebookRequest.getRules())));
+    rulebookFields.add(Fields.stringField(RULES_COL, Joiner.on(",").join(rulebookRequest.getRules())));
 
     long currentTime = getCurrentTime();
     rulebookFields.add(Fields.longField(CREATED_COL, currentTime));
@@ -390,7 +388,7 @@ final class RulesDB {
     }
 
     StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
-    List<String> rules = GSON.fromJson(rulebookRow.getString(RULES_COL), LIST_STRING_TYPE);
+    List<String> rules = getRulebookRulesFromTable(rulebookRow);
 
     if (rules.contains(ruleNamespacedId.getId())) {
       throw new RuleAlreadyExistsException(
@@ -435,7 +433,7 @@ final class RulesDB {
     }
 
     StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
-    List<String> rules = GSON.fromJson(rulebookRow.getString(RULES_COL), LIST_STRING_TYPE);
+    List<String> rules = getRulebookRulesFromTable(rulebookRow);
     rules.remove(ruleNamespacedId.getId());
 
     Collection<Field<?>> rulebookFields = new ArrayList<>(rulebookKeyFields);
@@ -470,7 +468,7 @@ final class RulesDB {
     }
 
     StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
-    List<String> rules = GSON.fromJson(rulebookRow.getString(RULES_COL), LIST_STRING_TYPE);
+    List<String> rules = getRulebookRulesFromTable(rulebookRow);
     Namespace namespace = namespacedId.getNamespace();
     String namespaceName = namespace.getName();
     long namespaceGeneration = namespace.getGeneration();
@@ -527,7 +525,7 @@ final class RulesDB {
     }
 
     StructuredRow rulebookRow = optionalRulebookStructuredRow.get();
-    List<String> rules = GSON.fromJson(rulebookRow.getString(RULES_COL), LIST_STRING_TYPE);
+    List<String> rules = getRulebookRulesFromTable(rulebookRow);
     Namespace namespace = namespacedId.getNamespace();
     String namespaceName = namespace.getName();
     long namespaceGeneration = namespace.getGeneration();
@@ -631,4 +629,13 @@ final class RulesDB {
 
     return keyFields;
   }
+
+  private List<String> getRulebookRulesFromTable(StructuredRow rulebookRow) {
+    String rulesColumn = Objects.toString(rulebookRow.getString(RULES_COL), "");
+    List<String> rules = new ArrayList<>(Arrays.asList(rulesColumn.split(",")));
+    rules.removeIf(item -> item == null || "".equals(item));
+
+    return rules;
+  }
+
 }
