@@ -129,7 +129,7 @@ public class YARERulebookHandler extends AbstractSystemHttpServiceHandler {
 
       JsonObject response = new JsonObject();
       response.addProperty("status", HttpURLConnection.HTTP_OK);
-      response.addProperty("message", "Successfully listed rules, testing .");
+      response.addProperty("message", "Successfully listed rules.");
       response.addProperty("count", rules.size());
       response.add("values", GSON.toJsonTree(rules));
 

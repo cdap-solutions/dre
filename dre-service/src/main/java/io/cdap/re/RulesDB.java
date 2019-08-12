@@ -159,7 +159,7 @@ final class RulesDB {
     Collection<Field<?>> ruleFields = new ArrayList<>(keyFields);
     ruleFields.add(Fields.stringField(DESCRIPTION_COL, rule.getDescription()));
     ruleFields.add(Fields.stringField(CONDITION_COL, rule.getWhen()));
-    ruleFields.add(Fields.stringField(ACTION_COL, GSON.toJson(rule.getThen())));
+    ruleFields.add(Fields.stringField(ACTION_COL, Joiner.on(";").join(rule.getThen())));
 
     long currentTime = getCurrentTime();
     ruleFields.add(Fields.longField(CREATED_COL, currentTime));
@@ -328,8 +328,9 @@ final class RulesDB {
       ruleIds.add(rule.getName());
 
       try {
-        createRule(namespacedId, request);
-      } catch (RuleAlreadyExistsException e) {
+        NamespacedId ruleNamespacedId = new NamespacedId(namespacedId.getNamespace(), rule.getName());
+        createRule(ruleNamespacedId, request);
+      } catch (RuleAlreadyExistsException raee) {
         // Nothing to be done here.
       }
     }
@@ -548,8 +549,10 @@ final class RulesDB {
       }
 
       StructuredRow ruleRow = optionalRuleStructuredRow.get();
+      // Since this method is called when exporting a rulebook, we have to match the expected format when importing a rulebook, which expects a ';' after each action.
+      String actionCol = ruleRow.getString(ACTION_COL) + ";";
       ruleOutput.add(String.format(RULE_TEMPLATE, ruleRow.getString(ID_COL), ruleRow.getString(DESCRIPTION_COL),
-                                   ruleRow.getString(CONDITION_COL), ruleRow.getString(ACTION_COL)));
+                                   ruleRow.getString(CONDITION_COL), actionCol));
     }
 
     return String.format(RULEBOOK_TEMPLATE, rulebookRow.getString(ID_COL), rulebookRow.getLong(VERSION_COL),
