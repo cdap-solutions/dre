@@ -28,12 +28,12 @@ import java.util.List;
  * Class description here.
  */
 public final class Rule {
+
   private String name;
   private String description;
   private List<String> given;
   private String when;
   private List<String> then;
-
 
   private Rule(String name, String description, List<String> given, String when, List<String> then) {
     this.name = name;
@@ -50,7 +50,6 @@ public final class Rule {
   public List<String> getGiven() {
     return given;
   }
-
 
   public String getWhen() {
     return when;
@@ -83,6 +82,7 @@ public final class Rule {
   }
 
   public static final class Builder {
+
     private String name;
     private String description;
     private String when;
@@ -96,22 +96,22 @@ public final class Rule {
     }
 
     public Builder description(String description) {
-      this.description = description;
+      this.description = description.trim();
       return this;
     }
 
     public Builder when(String when) {
-      this.when = when;
+      this.when = when.trim();
       return this;
     }
 
     public Builder then(String then) {
-      this.then.add(then);
+      this.then.add(then.trim());
       return this;
     }
 
     public Builder given(String given) {
-      this.given.add(given);
+      this.given.add(given.trim());
       return this;
     }
 

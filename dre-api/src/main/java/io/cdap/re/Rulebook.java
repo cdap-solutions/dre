@@ -27,6 +27,7 @@ import java.util.List;
  * Class description here.
  */
 public final class Rulebook {
+
   private String name;
   private long version;
   private RulebookMeta meta;
@@ -68,11 +69,8 @@ public final class Rulebook {
     return object;
   }
 
-  public Builder builder(String name) {
-    return new Builder(name);
-  }
-
   public static final class Builder {
+
     private String name;
     private long version;
     private String rbDescription;
@@ -83,7 +81,7 @@ public final class Rulebook {
     private List<Rule> rules;
 
     public Builder(String name) {
-      this.name = name;
+      this.name = name.trim();
       this.rules = new ArrayList<>();
     }
 
@@ -93,7 +91,7 @@ public final class Rulebook {
     }
 
     public Builder description(String description) {
-      this.rbDescription = description;
+      this.rbDescription = description.trim();
       return this;
     }
 
@@ -108,12 +106,12 @@ public final class Rulebook {
     }
 
     public Builder source(String source) {
-      this.source = source;
+      this.source = source.trim();
       return this;
     }
 
     public Builder user(String user) {
-      this.user = user;
+      this.user = user.trim();
       return this;
     }
 

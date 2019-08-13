@@ -26,9 +26,10 @@ import java.net.URL;
 import java.util.Map;
 
 /**
- * Class description here.
+ * This class {@link RulesEngineContext} is a runtime context that is provided for each execution.
  */
 class RulesEngineContext implements ExecutorContext {
+
   private final Environment environment;
   private final TransformContext context;
 
@@ -93,7 +94,7 @@ class RulesEngineContext implements ExecutorContext {
    * Returns a valid service url.
    *
    * @param applicationId id of the application to which a service url.
-   * @param serviceId     id of the service within application.
+   * @param serviceId id of the service within application.
    * @return URL if service exists, else null.
    */
   @Override

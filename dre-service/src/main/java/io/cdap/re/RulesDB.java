@@ -16,7 +16,6 @@
 
 package io.cdap.re;
 
-import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -159,7 +158,7 @@ final class RulesDB {
     Collection<Field<?>> ruleFields = new ArrayList<>(keyFields);
     ruleFields.add(Fields.stringField(DESCRIPTION_COL, rule.getDescription()));
     ruleFields.add(Fields.stringField(CONDITION_COL, rule.getWhen()));
-    ruleFields.add(Fields.stringField(ACTION_COL, Joiner.on(";").join(rule.getThen())));
+    ruleFields.add(Fields.stringField(ACTION_COL, String.join(";", rule.getThen())));
 
     long currentTime = getCurrentTime();
     ruleFields.add(Fields.longField(CREATED_COL, currentTime));
@@ -298,7 +297,7 @@ final class RulesDB {
     rulebookFields.add(Fields.stringField(DESCRIPTION_COL, rulebookRequest.getDescription()));
     rulebookFields.add(Fields.stringField(USER_COL, rulebookRequest.getUser()));
     rulebookFields.add(Fields.longField(VERSION_COL, 1L));
-    rulebookFields.add(Fields.stringField(RULES_COL, Joiner.on(",").join(rulebookRequest.getRules())));
+    rulebookFields.add(Fields.stringField(RULES_COL, String.join(",", rulebookRequest.getRules())));
 
     long currentTime = getCurrentTime();
     rulebookFields.add(Fields.longField(CREATED_COL, currentTime));
@@ -324,8 +323,11 @@ final class RulesDB {
     List<String> ruleIds = new ArrayList<>();
 
     for (Rule rule : rulebook.getRules()) {
-      RuleRequest request = new RuleRequest(rule.getName(), rule.getDescription(), rule.getWhen(), rule.getThen());
-      ruleIds.add(rule.getName());
+      // Have to remove the parenthesis introduced when importing a rulebook
+      String when = rule.getWhen();
+      when = when.replaceAll("\\(", "");
+      when = when.replaceAll("\\)", "");
+      RuleRequest request = new RuleRequest(rule.getName(), rule.getDescription(), when, rule.getThen());
 
       try {
         NamespacedId ruleNamespacedId = new NamespacedId(namespacedId.getNamespace(), rule.getName());
@@ -333,6 +335,8 @@ final class RulesDB {
       } catch (RuleAlreadyExistsException raee) {
         // Nothing to be done here.
       }
+
+      ruleIds.add(rule.getName());
     }
 
     RulebookRequest rbreq = new RulebookRequest(rulebook.getName(), rulebook.getMeta().getDescription(),
@@ -404,7 +408,7 @@ final class RulesDB {
     Collection<Field<?>> rulebookFields = new ArrayList<>(rulebookKeyFields);
     rulebookFields.add(Fields.longField(UPDATED_COL, getCurrentTime()));
     rulebookFields.add(Fields.longField(VERSION_COL, rulebookRow.getLong(VERSION_COL)));
-    rulebookFields.add(Fields.stringField(RULES_COL, Joiner.on(",").join(rules)));
+    rulebookFields.add(Fields.stringField(RULES_COL, String.join(",", rules)));
 
     rulebookTable.upsert(rulebookFields);
   }
@@ -440,7 +444,7 @@ final class RulesDB {
     Collection<Field<?>> rulebookFields = new ArrayList<>(rulebookKeyFields);
     rulebookFields.add(Fields.longField(UPDATED_COL, getCurrentTime()));
     rulebookFields.add(Fields.longField(VERSION_COL, rulebookRow.getLong(VERSION_COL) + 1));
-    rulebookFields.add(Fields.stringField(RULES_COL, Joiner.on(",").join(rules)));
+    rulebookFields.add(Fields.stringField(RULES_COL, String.join(",", rules)));
 
     rulebookTable.upsert(rulebookFields);
   }
@@ -558,7 +562,7 @@ final class RulesDB {
     return String.format(RULEBOOK_TEMPLATE, rulebookRow.getString(ID_COL), rulebookRow.getLong(VERSION_COL),
                          rulebookRow.getString(DESCRIPTION_COL), rulebookRow.getLong(CREATED_COL),
                          rulebookRow.getLong(UPDATED_COL), rulebookRow.getString(SOURCE_COL),
-                         rulebookRow.getString(USER_COL), Joiner.on("").join(ruleOutput));
+                         rulebookRow.getString(USER_COL), String.join("", ruleOutput));
   }
 
   /**
