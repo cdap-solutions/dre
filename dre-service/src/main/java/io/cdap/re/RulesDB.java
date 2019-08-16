@@ -638,11 +638,13 @@ final class RulesDB {
   }
 
   private List<String> getRulebookRulesFromTable(StructuredRow rulebookRow) {
-    String rulesColumn = Objects.toString(rulebookRow.getString(RULES_COL), "");
-    List<String> rules = new ArrayList<>(Arrays.asList(rulesColumn.split(",")));
-    rules.removeIf(item -> item == null || "".equals(item));
+    String rules = rulebookRow.getString(RULES_COL);
 
-    return rules;
+    if (rules == null || rules.equals("")) {
+      return new ArrayList<>();
+    }
+
+    return new ArrayList<>(Arrays.asList(rules.split(",")));
   }
 
 }
