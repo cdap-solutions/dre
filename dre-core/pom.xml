@@ -101,7 +101,7 @@
     <dependency>
       <groupId>io.cdap.http</groupId>
       <artifactId>netty-http</artifactId>
-      <version>${netty-http.version}</version>
+      <version>${netty.http.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
